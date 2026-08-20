@@ -944,11 +944,28 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
         const filterOperator: ComponentFramework.PropertyHelper.DataSetApi.Types.FilterOperator = 1;
         const filter: ComponentFramework.PropertyHelper.DataSetApi.FilterExpression = { conditions: [], filterOperator, filters: [] };
 
+        const configuredSearchableColumns: string[] = (
+            (searchIn && searchIn !== "")
+                ? searchIn.split(",")
+                : context.parameters.searchableColumns?.raw?.split(",") || []
+        ).map(s => s.trim()).filter(Boolean);
 
-        let searchableColumns: string[] = (searchIn && searchIn != "") ? searchIn.split(",") : // TODO change to ; ?
-            context.parameters.searchableColumns?.raw?.split(',') || [];  // TODO change to ; ?
+        const fallbackSearchableColumns = context.parameters.dataset.columns.filter(c =>
+            c.dataType === "Lookup.Simple" ||
+            c.dataType === "OptionSet" ||
+            c.dataType === "SingleLine.Text" ||
+            c.dataType === "Multiple"
+        );
 
-        context.parameters.dataset.columns.filter(c => /*searchableColumns.includes(c.name) || */searchableColumns.some(s => c.name.includes(s))).forEach((searchableColumn: ComponentFramework.PropertyHelper.DataSetApi.Column) => {
+        const searchableColumns = configuredSearchableColumns.length > 0
+            ? context.parameters.dataset.columns.filter(c => {
+                const parts = c.name.split(".");
+                const plainName = parts.length > 1 ? parts[1] : c.name;
+                return configuredSearchableColumns.some(s => s === c.name || s === plainName);
+            })
+            : fallbackSearchableColumns;
+
+        searchableColumns.forEach((searchableColumn: ComponentFramework.PropertyHelper.DataSetApi.Column) => {
             const aliasAndName = searchableColumn.name.split(".");
             let attributeName = (aliasAndName.length > 1) ? aliasAndName[1] : searchableColumn.name;
             switch (searchableColumn.dataType) {
