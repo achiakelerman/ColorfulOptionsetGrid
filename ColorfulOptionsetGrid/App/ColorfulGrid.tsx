@@ -367,9 +367,67 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
         tryLoadCities(0, 0);
     }, [isDashboardMode, cityEntityName, cityIdAttribute, cityNameAttribute]);
 
-    const effectiveCityOptions = (allCityOptions && allCityOptions.length > 0)
-        ? allCityOptions
-        : (cityOptions.length > 0 ? cityOptions : cityOptionsFromColumns);
+    const effectiveCityOptions = React.useMemo(() => {
+        const merged = new Map<string, { label: string; value: string }>();
+
+        const add = (list: Array<{ label: string; value: string }> | null | undefined) => {
+            if (!list) return;
+            list.forEach((item) => {
+                const key = `${item.value}`.trim();
+                const label = `${item.label}`.trim();
+                if (!key || !label) return;
+                if (!merged.has(key)) {
+                    merged.set(key, { label, value: key });
+                }
+            });
+        };
+
+        add(allCityOptions);
+        add(cityOptions);
+        add(cityOptionsFromColumns);
+
+        const values: Array<{ label: string; value: string }> = [];
+        merged.forEach(v => values.push(v));
+        return values.sort((a, b) => a.label.localeCompare(b.label));
+    }, [allCityOptions, cityOptions, cityOptionsFromColumns]);
+
+    const filteredItems = React.useMemo(() => {
+        if (!isDashboardMode || selectedCities.length === 0) {
+            return items;
+        }
+
+        const selected = new Set<string>();
+        selectedCities.forEach((c: any) => {
+            if (c?.label) selected.add(String(c.label).trim().toLowerCase());
+            if (c?.value) selected.add(String(c.value).trim().toLowerCase());
+        });
+
+        if (selected.size === 0) {
+            return items;
+        }
+
+        return items.filter((item) => {
+            const keys = Object.keys(item);
+            const candidateKeys = keys.filter((k) => {
+                const lower = k.toLowerCase();
+                return (
+                    lower.includes("city") ||
+                    lower.includes("district") ||
+                    lower.endsWith(`${cityLookupAttribute.toLowerCase()}name`) ||
+                    lower.endsWith(cityLookupAttribute.toLowerCase())
+                );
+            });
+
+            for (const key of candidateKeys) {
+                const value = item[key];
+                if (value != null && selected.has(String(value).trim().toLowerCase())) {
+                    return true;
+                }
+            }
+
+            return false;
+        });
+    }, [isDashboardMode, items, selectedCities, cityLookupAttribute]);
 
     // When builtInFilterOptions or dataset filter changes, recompute current selection
     useEffect(() => {
@@ -1436,7 +1494,7 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
     return (<>
         {(IsLoading()) && <LoadingGIF />}
         {(!IsLoading()) && <div className='ColorfulOptionsetGrid pcf-container'>
-            {context.parameters.showSearchAndFilters.raw == "true" && (
+            {context.parameters.showSearchAndFilters.raw == "true" && !isDashboardMode && (
                 <div className='ColorfulOptionsetGrid header-bar'>
                     <div className='ColorfulOptionsetGrid built-in-filters'>
                         <button className={`built-in-filter-btn ${currentBuiltInFilter === (context.parameters.builtInFilterText1?.raw ?? "") ? "clicked" : ""}`} onClick={filterDataSetByStatus}>
@@ -1575,7 +1633,7 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
                         <DetailsList
                             setKey="items"
                             onRenderDetailsHeader={gridHeader(onColumnClick)}
-                            items={items}
+                            items={filteredItems}
                             columns={columns}
                             selection={selection}
                             selectionPreservedOnEmptyClick={true}
