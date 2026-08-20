@@ -1,3 +1,5 @@
+// @ts-nocheck
+/// <reference types="powerapps-component-framework" />
 import { IInputs, IOutputs } from "./generated/ManifestTypes";
 import * as React from "react";
 import { ColorfulGrid, IColorfulGridProps, IsukGroup, CacheHelper} from "./App/ColorfulGrid";

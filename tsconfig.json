@@ -2,6 +2,7 @@
     "extends": "./node_modules/pcf-scripts/tsconfig_base.json",
     "compilerOptions": {
         "typeRoots": ["node_modules/@types"],
+        "types": ["powerapps-component-framework", "node"],
         "strict": false,
         "noImplicitAny": false,
         "ignoreDeprecations": "6.0"
