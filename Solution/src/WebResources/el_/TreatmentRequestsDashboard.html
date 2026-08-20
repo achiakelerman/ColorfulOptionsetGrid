@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>בקשות לטיפול</title>
+    <style>
+        :root { color: #1f2933; font-family: "Segoe UI", "Segoe UI Web", sans-serif; }
+        * { box-sizing: border-box; }
+        body { background: #f7f9fb; margin: 0; padding: 16px; }
+        header { align-items: baseline; display: flex; justify-content: space-between; margin-bottom: 16px; }
+        h1 { color: #0b5cab; font-size: 24px; margin: 0; }
+        .filters, .state, .table-wrap { background: #fff; border: 1px solid #d9e2ec; }
+        .filters { align-items: end; display: grid; gap: 12px; grid-template-columns: repeat(7, minmax(130px, 1fr)) auto auto; padding: 14px; }
+        label { color: #334e68; display: block; font-size: 12px; }
+        input, select, button { font: inherit; height: 38px; margin-top: 4px; width: 100%; }
+        input, select { border: 1px solid #9fb3c8; padding: 6px 9px; }
+        button { cursor: pointer; padding: 0 16px; width: auto; }
+        #search { background: #0b5cab; border: 1px solid #0b5cab; color: #fff; }
+        #clear { background: #fff; border: 1px solid #0b5cab; color: #0b5cab; }
+        .state { margin-top: 16px; padding: 28px; text-align: center; }
+        .error { border-color: #d64545; color: #a61b1b; }
+        .table-wrap { margin-top: 16px; overflow: auto; }
+        table { border-collapse: collapse; min-width: 980px; width: 100%; }
+        th, td { border-bottom: 1px solid #e4e7eb; padding: 10px 12px; text-align: right; vertical-align: top; }
+        th { background: #f0f4f8; color: #243b53; font-size: 13px; white-space: nowrap; }
+        @media (max-width: 1100px) { .filters { grid-template-columns: repeat(3, minmax(150px, 1fr)); } }
+    </style>
+</head>
+<body>
+    <header><h1>בקשות לטיפול</h1><span id="count"></span></header>
+    <section class="filters">
+        <label>חיפוש<input id="text" placeholder="מספר בקשה או נושא" /></label>
+        <label>מגדר<select id="gender"><option value="">הכל</option></select></label>
+        <label>שפה<select id="language"><option value="">הכל</option></select></label>
+        <label>יום<select id="day"><option value="">הכל</option></select></label>
+        <label>שעה<select id="time"><option value="">הכל</option></select></label>
+        <label>סוג תור<select id="queueType"><option value="">הכל</option></select></label>
+        <label>עיר<select id="city"><option value="">הכל</option></select></label>
+        <button id="search" type="button">חיפוש</button>
+        <button id="clear" type="button">ניקוי</button>
+    </section>
+    <div id="content" class="state">טוען בקשות טיפול...</div>
+    <script>
+        (function () {
+            "use strict";
+
+            var Xrm = window.parent && window.parent.Xrm;
+            var records = [];
+            var cityIncidentIds = {};
+            var fields = {
+                gender: "mac_p_member_gender",
+                language: "mac_p_preferred_language",
+                day: "mac_p_preffered_day",
+                time: "mac_p_preferred_time",
+                queueType: "mac_p_preferred_queue_type"
+            };
+            var formattedSuffix = "@OData.Community.Display.V1.FormattedValue";
+
+            function escapeHtml(value) {
+                return String(value || "").replace(/[&<>"']/g, function (character) {
+                    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character];
+                });
+            }
+
+            function escapeXml(value) {
+                return String(value || "").replace(/[&<>"']/g, function (character) {
+                    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" }[character];
+                });
+            }
+
+            function formatDate(value) {
+                return value ? new Date(value).toLocaleString("he-IL") : "";
+            }
+
+            function valueOf(record, field) {
+                return record[field + formattedSuffix] || record[field] || "";
+            }
+
+            function setState(message, isError) {
+                var content = document.getElementById("content");
+                content.className = "state" + (isError ? " error" : "");
+                content.textContent = message;
+            }
+
+            function addOptions(elementId, values) {
+                var select = document.getElementById(elementId);
+                Array.from(values).filter(Boolean).sort(function (left, right) { return left.localeCompare(right, "he"); }).forEach(function (value) {
+                    var option = document.createElement("option");
+                    option.value = value;
+                    option.textContent = value;
+                    select.appendChild(option);
+                });
+            }
+
+            function populateFilters(cities) {
+                Object.keys(fields).forEach(function (filterName) {
+                    addOptions(filterName, new Set(records.map(function (record) { return valueOf(record, fields[filterName]); })));
+                });
+                cities.sort(function (left, right) { return left.name.localeCompare(right.name, "he"); }).forEach(function (city) {
+                    var option = document.createElement("option");
+                    option.value = city.id;
+                    option.textContent = city.name;
+                    document.getElementById("city").appendChild(option);
+                });
+            }
+
+            function showRecords() {
+                var text = document.getElementById("text").value.trim().toLowerCase();
+                var selected = {};
+                Object.keys(fields).forEach(function (filterName) { selected[filterName] = document.getElementById(filterName).value; });
+                var city = document.getElementById("city").value;
+                var filtered = records.filter(function (record) {
+                    if (text && (record.ticketnumber || "").toLowerCase().indexOf(text) === -1 && (record.title || "").toLowerCase().indexOf(text) === -1) return false;
+                    if (city && !cityIncidentIds[city + ":" + record.incidentid]) return false;
+                    return Object.keys(fields).every(function (filterName) {
+                        return !selected[filterName] || valueOf(record, fields[filterName]) === selected[filterName];
+                    });
+                });
+
+                document.getElementById("count").textContent = filtered.length + " בקשות";
+                if (!filtered.length) { setState("לא נמצאו בקשות טיפול."); return; }
+
+                var rows = filtered.map(function (record) {
+                    return "<tr><td>" + escapeHtml(record.ticketnumber) + "</td><td>" + escapeHtml(record.title) + "</td><td>" + escapeHtml(valueOf(record, "prioritycode")) + "</td><td>" + escapeHtml(valueOf(record, fields.gender)) + "</td><td>" + escapeHtml(valueOf(record, fields.language)) + "</td><td>" + escapeHtml(valueOf(record, fields.day)) + "</td><td>" + escapeHtml(valueOf(record, fields.time)) + "</td><td>" + escapeHtml(valueOf(record, fields.queueType)) + "</td><td>" + escapeHtml(formatDate(record.createdon)) + "</td></tr>";
+                }).join("");
+                document.getElementById("content").className = "table-wrap";
+                document.getElementById("content").innerHTML = "<table><thead><tr><th>מספר בקשה</th><th>נושא</th><th>דחיפות</th><th>מגדר</th><th>שפה</th><th>יום</th><th>שעה</th><th>סוג תור</th><th>נוצר בתאריך</th></tr></thead><tbody>" + rows + "</tbody></table>";
+            }
+
+            async function load() {
+                if (!Xrm || !Xrm.WebApi) { setState("לא ניתן לגשת ל־Dataverse מתוך דשבורד זה.", true); return; }
+                try {
+                    var incidentsFetch = "<fetch distinct='true'><entity name='incident'><attribute name='incidentid'/><attribute name='ticketnumber'/><attribute name='title'/><attribute name='prioritycode'/><attribute name='createdon'/><attribute name='" + fields.gender + "'/><attribute name='" + fields.language + "'/><attribute name='" + fields.day + "'/><attribute name='" + fields.time + "'/><attribute name='" + fields.queueType + "'/><order attribute='prioritycode' descending='false'/><order attribute='createdon' descending='false'/><filter><condition attribute='statecode' operator='eq' value='0'/></filter><link-entity name='queueitem' from='objectid' to='incidentid' link-type='inner'><filter><condition attribute='statecode' operator='eq' value='1'/><condition attribute='statuscode' operator='eq' value='2'/></filter></link-entity></entity></fetch>";
+                    var results = await Promise.all([
+                        Xrm.WebApi.retrieveMultipleRecords("incident", "?fetchXml=" + encodeURIComponent(incidentsFetch)),
+                        Xrm.WebApi.retrieveMultipleRecords("ey_city", "?$select=ey_cityid,ey_name&$orderby=ey_name"),
+                        Xrm.WebApi.retrieveMultipleRecords("mac_incident_ey_city", "?$select=mac_incidentid,mac_cityid")
+                    ]);
+                    records = results[0].entities;
+                    results[2].entities.forEach(function (link) {
+                        var incidentId = link.mac_incidentid;
+                        var cityId = link.mac_cityid;
+                        if (incidentId && cityId) cityIncidentIds[cityId + ":" + incidentId] = true;
+                    });
+                    populateFilters(results[1].entities.map(function (city) { return { id: city.ey_cityid, name: city.ey_name }; }).filter(function (city) { return city.id && city.name; }));
+                    showRecords();
+                } catch (error) {
+                    setState((error && error.message) || "טעינת בקשות הטיפול נכשלה.", true);
+                }
+            }
+
+            document.getElementById("search").addEventListener("click", showRecords);
+            document.getElementById("clear").addEventListener("click", function () {
+                document.querySelectorAll("input, select").forEach(function (element) { element.value = ""; });
+                showRecords();
+            });
+            load();
+        }());
+    </script>
+</body>
+</html>
