@@ -5,5 +5,11 @@
         "types": ["powerapps-component-framework", "node"],
         "strict": false,
         "noImplicitAny": false
-    }
+    },
+    "exclude": [
+        "ColorfulOptionsetGrid/index.ts",
+        "ColorfulOptionsetGrid/App/ColorfulGrid.tsx",
+        "ColorfulOptionsetGrid/App/Controls/ColorfulCell.tsx",
+        "ColorfulOptionsetGrid/App/Controls/ColorfulCellItem.tsx"
+    ]
 }
