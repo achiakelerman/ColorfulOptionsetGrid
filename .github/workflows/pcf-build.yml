@@ -39,3 +39,12 @@ jobs:
             Solution/bin/Release/**
             Solution/**/obj/**
           if-no-files-found: warn
+
+      - name: Upload Dataverse solution zips
+        uses: actions/upload-artifact@v5
+        with:
+          name: dataverse-solution-zips
+          path: |
+            Solution/bin/Release/**/*.zip
+            Solution/bin/Debug/**/*.zip
+          if-no-files-found: warn
