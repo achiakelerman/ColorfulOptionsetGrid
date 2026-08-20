@@ -256,6 +256,19 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
             return;
         }
 
+        const toSortedOptions = (map: Map<string, { label: string; value: string }>) => {
+            const values: Array<{ label: string; value: string }> = [];
+            map.forEach(v => values.push(v));
+            return values.sort((a, b) => a.label.localeCompare(b.label));
+        };
+
+        const cityEntityCandidates = Array.from(new Set([
+            cityEntityName,
+            "ey_city",
+            "mac_city",
+            "new_city"
+        ].filter(Boolean)));
+
         const candidateSelects: Array<[string, string]> = [
             [cityIdAttribute, cityNameAttribute],
             ["ey_cityid", "ey_name"],
@@ -263,16 +276,72 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
             ["new_cityid", "new_name"]
         ];
 
-        const tryLoadCities = (index: number) => {
-            if (index >= candidateSelects.length) {
-                setAllCityOptions(null);
+        const tryLoadFromLinkEntity = () => {
+            const linkEntityCandidates = [
+                "mac_incident_ey_city",
+                "ey_incident_city",
+                "new_incident_city"
+            ];
+            const linkLookupCandidates = ["mac_cityid", "ey_cityid", "new_cityid"];
+
+            const tryLink = (entityIndex: number, lookupIndex: number) => {
+                if (entityIndex >= linkEntityCandidates.length) {
+                    setAllCityOptions(null);
+                    return;
+                }
+                if (lookupIndex >= linkLookupCandidates.length) {
+                    tryLink(entityIndex + 1, 0);
+                    return;
+                }
+
+                const linkEntityName = linkEntityCandidates[entityIndex];
+                const lookupField = linkLookupCandidates[lookupIndex];
+                const query = `?$select=${lookupField}`;
+
+                context.webAPI.retrieveMultipleRecords(linkEntityName, query)
+                    .then((response) => {
+                        const result = new Map<string, { label: string; value: string }>();
+                        response.entities.forEach((entity) => {
+                            const id = (entity[`_${lookupField}_value`] ?? entity[lookupField]) as string | undefined;
+                            const name = (
+                                entity[`_${lookupField}_value@OData.Community.Display.V1.FormattedValue`] ??
+                                entity[`${lookupField}@OData.Community.Display.V1.FormattedValue`]
+                            ) as string | undefined;
+                            if (id) {
+                                result.set(id, { label: name ?? id, value: id });
+                            }
+                        });
+
+                        if (result.size === 0) {
+                            tryLink(entityIndex, lookupIndex + 1);
+                            return;
+                        }
+
+                        setAllCityOptions(toSortedOptions(result));
+                    })
+                    .catch(() => {
+                        tryLink(entityIndex, lookupIndex + 1);
+                    });
+            };
+
+            tryLink(0, 0);
+        };
+
+        const tryLoadCities = (entityIndex: number, fieldIndex: number) => {
+            if (entityIndex >= cityEntityCandidates.length) {
+                tryLoadFromLinkEntity();
+                return;
+            }
+            if (fieldIndex >= candidateSelects.length) {
+                tryLoadCities(entityIndex + 1, 0);
                 return;
             }
 
-            const [idField, nameField] = candidateSelects[index];
+            const entityName = cityEntityCandidates[entityIndex];
+            const [idField, nameField] = candidateSelects[fieldIndex];
             const query = `?$select=${idField},${nameField}`;
 
-            context.webAPI.retrieveMultipleRecords(cityEntityName, query)
+            context.webAPI.retrieveMultipleRecords(entityName, query)
                 .then((response) => {
                     const result = new Map<string, { label: string; value: string }>();
                     response.entities.forEach((entity) => {
@@ -284,20 +353,18 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
                     });
 
                     if (result.size === 0) {
-                        tryLoadCities(index + 1);
+                        tryLoadCities(entityIndex, fieldIndex + 1);
                         return;
                     }
 
-                    const values: Array<{ label: string; value: string }> = [];
-                    result.forEach(v => values.push(v));
-                    setAllCityOptions(values.sort((a, b) => a.label.localeCompare(b.label)));
+                    setAllCityOptions(toSortedOptions(result));
                 })
                 .catch(() => {
-                    tryLoadCities(index + 1);
+                    tryLoadCities(entityIndex, fieldIndex + 1);
                 });
         };
 
-        tryLoadCities(0);
+        tryLoadCities(0, 0);
     }, [isDashboardMode, cityEntityName, cityIdAttribute, cityNameAttribute]);
 
     const effectiveCityOptions = (allCityOptions && allCityOptions.length > 0)
@@ -1371,7 +1438,6 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
         {(!IsLoading()) && <div className='ColorfulOptionsetGrid pcf-container'>
             {context.parameters.showSearchAndFilters.raw == "true" && (
                 <div className='ColorfulOptionsetGrid header-bar'>
-                    <label className='title'>ניהול משימות לביקור בית</label>
                     <div className='ColorfulOptionsetGrid built-in-filters'>
                         <button className={`built-in-filter-btn ${currentBuiltInFilter === (context.parameters.builtInFilterText1?.raw ?? "") ? "clicked" : ""}`} onClick={filterDataSetByStatus}>
                             <label className='built-in-filter-count'>{builtInFilterCount1}</label>
