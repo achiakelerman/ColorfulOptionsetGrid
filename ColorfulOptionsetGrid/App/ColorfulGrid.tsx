@@ -135,9 +135,16 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
         return Number.isFinite(parsed) ? parsed : fallback;
     };
 
+    const datasetHasAlias = (alias: string): boolean => {
+        if (!alias) return false;
+        return context.parameters.dataset.columns.some(c => c.name === alias || c.name.startsWith(`${alias}.`));
+    };
+
     const incidentActiveStateCode = parseIntOrDefault(context.parameters.incidentActiveStateCode?.raw, 0);
     const waitingQueueItemStateCode = parseIntOrDefault(context.parameters.waitingQueueItemStateCode?.raw, 1);
     const waitingQueueItemStatusCode = parseIntOrDefault(context.parameters.waitingQueueItemStatusCode?.raw, 2);
+    const hasQueueItemAlias = datasetHasAlias(queueItemAlias);
+    const hasCityLinkAlias = datasetHasAlias(cityLinkAlias);
 
     const requiredMetadataAttributes = React.useMemo(() => {
         if (!isDashboardMode) return [];
@@ -939,19 +946,21 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
                 root.conditions.push({ attributeName: "statecode", conditionOperator: 0, value: incidentActiveStateCode.toString() });
             }
 
-            root.conditions.push({
-                attributeName: "statecode",
-                entityAliasName: queueItemAlias,
-                conditionOperator: 0,
-                value: waitingQueueItemStateCode.toString()
-            });
+            if (hasQueueItemAlias) {
+                root.conditions.push({
+                    attributeName: "statecode",
+                    entityAliasName: queueItemAlias,
+                    conditionOperator: 0,
+                    value: waitingQueueItemStateCode.toString()
+                });
 
-            root.conditions.push({
-                attributeName: "statuscode",
-                entityAliasName: queueItemAlias,
-                conditionOperator: 0,
-                value: waitingQueueItemStatusCode.toString()
-            });
+                root.conditions.push({
+                    attributeName: "statuscode",
+                    entityAliasName: queueItemAlias,
+                    conditionOperator: 0,
+                    value: waitingQueueItemStatusCode.toString()
+                });
+            }
 
             CacheHelper.saveJson<ComponentFramework.PropertyHelper.DataSetApi.FilterExpression>(cacheFilterKey, root);
             context.parameters.dataset.filtering.setFilter(root);
@@ -1070,19 +1079,21 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
                 root.conditions.push({ attributeName: "statecode", conditionOperator: 0, value: incidentActiveStateCode.toString() });
             }
 
-            root.conditions.push({
-                attributeName: "statecode",
-                entityAliasName: queueItemAlias,
-                conditionOperator: 0,
-                value: waitingQueueItemStateCode.toString()
-            });
+            if (hasQueueItemAlias) {
+                root.conditions.push({
+                    attributeName: "statecode",
+                    entityAliasName: queueItemAlias,
+                    conditionOperator: 0,
+                    value: waitingQueueItemStateCode.toString()
+                });
 
-            root.conditions.push({
-                attributeName: "statuscode",
-                entityAliasName: queueItemAlias,
-                conditionOperator: 0,
-                value: waitingQueueItemStatusCode.toString()
-            });
+                root.conditions.push({
+                    attributeName: "statuscode",
+                    entityAliasName: queueItemAlias,
+                    conditionOperator: 0,
+                    value: waitingQueueItemStatusCode.toString()
+                });
+            }
 
             const addInFilter = (attributeName: string, values: any[], entityAliasName?: string) => {
                 if (values.length === 0) return;
@@ -1099,7 +1110,9 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
             addInFilter(dayAttribute, selectedDays.map(s => s.value));
             addInFilter(timeAttribute, selectedTimes.map(s => s.value));
             addInFilter(queueTypeAttribute, selectedQueueTypes.map(s => s.value));
-            addInFilter(cityLookupAttribute, selectedCities.map(s => s.value), cityLinkAlias);
+            if (hasCityLinkAlias) {
+                addInFilter(cityLookupAttribute, selectedCities.map(s => s.value), cityLinkAlias);
+            }
 
             if (searchWord) {
                 root.filters.push(getSearchFilter(searchWord));

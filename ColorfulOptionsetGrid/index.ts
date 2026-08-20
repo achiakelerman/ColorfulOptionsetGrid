@@ -202,6 +202,11 @@ export class ColorfulOptionsetGrid implements ComponentFramework.ReactControl<II
         return Number.isFinite(parsed) ? parsed : fallback;
     }
 
+    private datasetHasAlias(dataset: ComponentFramework.PropertyTypes.DataSet, alias: string): boolean {
+        if (!alias) return false;
+        return dataset.columns.some((column) => column.name === alias || column.name.startsWith(`${alias}.`));
+    }
+
     private applyDashboardBaseFilter(context: ComponentFramework.Context<IInputs>): void {
         const mode = context.parameters.dashboardMode.raw;
         const therapistQueueName = (context.parameters.therapistQueueName.raw ?? "בקשות לטיפול מטפלים").trim();
@@ -210,6 +215,8 @@ export class ColorfulOptionsetGrid implements ComponentFramework.ReactControl<II
 
         const queueItemAlias = (context.parameters.queueItemAlias.raw ?? "queueitem").trim();
         const queueAlias = (context.parameters.queueAlias.raw ?? "queue").trim();
+        const hasQueueItemAlias = this.datasetHasAlias(context.parameters.dataset, queueItemAlias);
+        const hasQueueAlias = this.datasetHasAlias(context.parameters.dataset, queueAlias);
 
         const requireActiveOnly = (context.parameters.requireActiveOnly.raw ?? "true") === "true";
         const incidentActiveState = this.parseIntOrDefault(context.parameters.incidentActiveStateCode.raw, 0);
@@ -227,21 +234,23 @@ export class ColorfulOptionsetGrid implements ComponentFramework.ReactControl<II
             filter.conditions.push({ attributeName: "statecode", conditionOperator: 0, value: incidentActiveState.toString() });
         }
 
-        filter.conditions.push({
-            attributeName: "statecode",
-            entityAliasName: queueItemAlias,
-            conditionOperator: 0,
-            value: waitingQueueItemState.toString()
-        });
+        if (hasQueueItemAlias) {
+            filter.conditions.push({
+                attributeName: "statecode",
+                entityAliasName: queueItemAlias,
+                conditionOperator: 0,
+                value: waitingQueueItemState.toString()
+            });
 
-        filter.conditions.push({
-            attributeName: "statuscode",
-            entityAliasName: queueItemAlias,
-            conditionOperator: 0,
-            value: waitingQueueItemStatus.toString()
-        });
+            filter.conditions.push({
+                attributeName: "statuscode",
+                entityAliasName: queueItemAlias,
+                conditionOperator: 0,
+                value: waitingQueueItemStatus.toString()
+            });
+        }
 
-        if (queueName) {
+        if (queueName && hasQueueAlias) {
             filter.conditions.push({
                 attributeName: "name",
                 entityAliasName: queueAlias,
