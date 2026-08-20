@@ -1,0 +1,62 @@
+/* eslint-disable no-undef */
+/* eslint-disable no-unused-vars */
+
+import * as React from 'react';
+type DataSet = ComponentFramework.PropertyTypes.DataSet;
+import DataSetInterfaces = ComponentFramework.PropertyHelper.DataSetApi;
+
+
+export const usePaging = (dataset: DataSet) => {    
+      
+    const [firstItemNumber, setFirstItemNumber] = React.useState<number>(0);
+    const [lastItemNumber, setLastItemNumber] = React.useState<number>();
+    const [totalRecords, setTotalRecords] = React.useState<string>();
+    const [currentPage, setCurrentPage] = React.useState<number>(0);
+    const [pageSize, setPageSize] = React.useState<number>(0);    
+
+    React.useEffect(() => {
+        if(!dataset.paging.hasPreviousPage){ //first page
+            setPageSize(dataset.sortedRecordIds.length);
+            setCurrentPage(1);
+            setTotalRecords(dataset.paging.totalResultCount != -1 ? dataset.paging.totalResultCount.toString() : "5000+");
+            setFirstItemNumber((dataset.paging.totalResultCount > 0 || dataset.paging.totalResultCount == -1) ? 1 : 0);
+            setLastItemNumber(dataset.sortedRecordIds.length)            
+        }               
+        else {
+            setFirstItemNumber((currentPage-1) * pageSize + 1);
+            setLastItemNumber((currentPage-1) * pageSize + dataset.sortedRecordIds.length )       
+        }
+    }, [dataset]);
+
+  
+
+    function moveToFirst(){        
+        setCurrentPage(1);
+        (dataset.paging as any).loadExactPage(1);
+    }
+
+    function movePrevious(){        
+        const newPage = currentPage-1;
+        setCurrentPage(newPage);
+        (dataset.paging as any).loadExactPage(newPage);        
+       
+    }
+
+    function moveNext(){        
+        const newPage = currentPage+1;
+        setCurrentPage(newPage);
+        (dataset.paging as any).loadExactPage(newPage);                
+    }   
+
+    return {       
+        
+        currentPage,
+        firstItemNumber, 
+        lastItemNumber, 
+        totalRecords, 
+        moveToFirst, 
+        movePrevious,
+        moveNext,       
+
+    }
+}

@@ -1,0 +1,38 @@
+name: PCF Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build PCF
+        run: npm run build
+
+      - name: Upload PCF output
+        uses: actions/upload-artifact@v4
+        with:
+          name: pcf-out
+          path: |
+            out/**
+            Solution/**/bin/**
+            Solution/**/obj/**
+          if-no-files-found: warn
