@@ -11,6 +11,8 @@ const MultiSelect = (props: any) => {
   const isAllSelected = useRef<boolean>(false);
   const selectAllLabel = useRef<string>("הכל");
   const allOption = { value: "*", label: selectAllLabel.current };
+  const selectedCount = Array.isArray(props.value) ? props.value.length : 0;
+  const compactPlaceholder = selectedCount > 0 ? `נבחרו ${selectedCount}` : "בחר...";
 
   const filterOptions = (options: Option[], input: string) =>
     options?.filter(({ label }: Option) =>
@@ -203,7 +205,8 @@ const MultiSelect = (props: any) => {
             backspaceRemovesValue={false}
             hideSelectedOptions={false}
             blurInputOnSelect={false}
-            placeholder="בחר..."
+            placeholder={compactPlaceholder}
+            controlShouldRenderValue={false}
             name="options"
             className="ColorfulOptionsetGrid basic-multi-select"
             classNamePrefix="select"
@@ -230,7 +233,8 @@ const MultiSelect = (props: any) => {
           hideSelectedOptions={true}
           backspaceRemovesValue={false}
           blurInputOnSelect={true}
-          placeholder="בחר..."
+          placeholder={compactPlaceholder}
+          controlShouldRenderValue={false}
           name="options"
           className="ColorfulOptionsetGrid basic-multi-select"
           classNamePrefix="select"

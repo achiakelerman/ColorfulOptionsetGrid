@@ -232,6 +232,24 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
         return values.sort((a, b) => a.label.localeCompare(b.label));
     }, [items, cityLinkAlias, cityLookupAttribute]);
 
+    const cityOptionsFromColumns = React.useMemo(() => {
+        const cityColumn = context.parameters.dataset.columns.find(c => c.name.endsWith(`${cityLookupAttribute}name`))
+            ?? context.parameters.dataset.columns.find(c => c.name.toLowerCase().includes("city") && c.name.endsWith("name"));
+        if (!cityColumn) return [] as Array<{ label: string; value: string }>;
+
+        const result = new Map<string, { label: string; value: string }>();
+        items.forEach(item => {
+            const name = item[cityColumn.name] as string | undefined;
+            if (name && name.trim() !== "") {
+                result.set(name, { label: name, value: name });
+            }
+        });
+
+        const values: Array<{ label: string; value: string }> = [];
+        result.forEach(v => values.push(v));
+        return values.sort((a, b) => a.label.localeCompare(b.label));
+    }, [items, context.parameters.dataset.columns, cityLookupAttribute]);
+
     React.useEffect(() => {
         if (!isDashboardMode) {
             setAllCityOptions(null);
@@ -282,7 +300,9 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
         tryLoadCities(0);
     }, [isDashboardMode, cityEntityName, cityIdAttribute, cityNameAttribute]);
 
-    const effectiveCityOptions = allCityOptions && allCityOptions.length > 0 ? allCityOptions : cityOptions;
+    const effectiveCityOptions = (allCityOptions && allCityOptions.length > 0)
+        ? allCityOptions
+        : (cityOptions.length > 0 ? cityOptions : cityOptionsFromColumns);
 
     // When builtInFilterOptions or dataset filter changes, recompute current selection
     useEffect(() => {
@@ -1135,7 +1155,16 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
             addInFilter(timeAttribute, selectedTimes.map(s => s.value));
             addInFilter(queueTypeAttribute, selectedQueueTypes.map(s => s.value));
             if (hasCityLinkAlias) {
-                addInFilter(cityLookupAttribute, selectedCities.map(s => s.value), cityLinkAlias);
+                const selectedCityValues = selectedCities.map(s => s.value);
+                const selectedCityGuids = selectedCityValues.filter(v => typeof v === "string" && /^[0-9a-fA-F-]{32,36}$/.test(v as string));
+                const selectedCityNames = selectedCityValues.filter(v => !(typeof v === "string" && /^[0-9a-fA-F-]{32,36}$/.test(v as string)));
+
+                if (selectedCityGuids.length > 0) {
+                    addInFilter(cityLookupAttribute, selectedCityGuids, cityLinkAlias);
+                }
+                if (selectedCityNames.length > 0) {
+                    addInFilter(`${cityLookupAttribute}name`, selectedCityNames, cityLinkAlias);
+                }
             }
 
             if (searchWord) {

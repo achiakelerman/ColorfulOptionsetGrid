@@ -2,7 +2,7 @@
 <manifest>
   <control namespace="Elad" 
            constructor="ColorfulOptionsetGrid" 
-           version="0.3.41"
+           version="0.3.42"
            display-name-key="Elad_ColorfulOptionsetGrid" 
            description-key="Elad_ColorfulOptionsetGrid_Description"
            control-type="virtual" preview-image="css/imgs/Preview.png">
