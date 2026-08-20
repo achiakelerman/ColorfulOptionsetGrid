@@ -27,12 +27,15 @@ jobs:
       - name: Build PCF
         run: npm run build
 
+      - name: Build Dataverse solution package
+        run: dotnet build Solution/Solution.cdsproj -c Release
+
       - name: Upload PCF output
         uses: actions/upload-artifact@v5
         with:
           name: pcf-out
           path: |
             out/**
-            Solution/**/bin/**
+            Solution/bin/Release/**
             Solution/**/obj/**
           if-no-files-found: warn
