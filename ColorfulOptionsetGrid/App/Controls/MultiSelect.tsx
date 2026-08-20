@@ -8,7 +8,6 @@ export type Option = {
 
 const MultiSelect = (props: any) => {
     const [selectInput, setSelectInput] = useState<string>("");
-    const [selected, setSelected] = useState<Option[]>([]);
   const isAllSelected = useRef<boolean>(false);
   const selectAllLabel = useRef<string>("הכל");
   const allOption = { value: "*", label: selectAllLabel.current };
@@ -19,7 +18,7 @@ const MultiSelect = (props: any) => {
     );
 
   const comparator = (v1: Option, v2: Option) =>
-    (v1.value as number) - (v2.value as number);
+    String(v1.label).localeCompare(String(v2.label));
 
   let filteredOptions = filterOptions(props.options, selectInput);
   let filteredSelectedOptions = filterOptions(props.value, selectInput);
@@ -78,14 +77,12 @@ const MultiSelect = (props: any) => {
   };
 
     const onKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
-     if (e.key === "Enter" && selected)
-        return;
+    if (e.key === "Enter") return;
     if ((e.key === " " || e.key === "Enter") && !selectInput)
       e.preventDefault();
   };
 
     const handleChange = (selected: Option[]) => {
-    setSelected(selected);
     if (
       selected.length > 0 &&
       !isAllSelected.current &&
@@ -121,9 +118,19 @@ const MultiSelect = (props: any) => {
   };
 
   const customStyles = {
+    control: (base: any) => ({
+      ...base,
+      minHeight: "34px",
+      border: 0,
+      boxShadow: "none",
+      backgroundColor: "transparent",
+    }),
     multiValueLabel: (def: any) => ({
       ...def,
       backgroundColor: "lightgray",
+      maxWidth: "120px",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
     }),
     multiValueRemove: (def: any) => ({
       ...def,
@@ -131,9 +138,17 @@ const MultiSelect = (props: any) => {
     }),
     valueContainer: (base: any) => ({
       ...base,
-      maxHeight: "65px",
-      overflow: "auto",
+      maxHeight: "56px",
+      overflowY: "auto",
+      overflowX: "hidden",
+      display: "flex",
+      flexWrap: "wrap",
+      alignItems: "center",
+      gap: "2px",
+      paddingTop: "2px",
+      paddingBottom: "2px",
     }),
+    menuPortal: (base: any) => ({ ...base, zIndex: 9999 }),
     option: (styles: any, { isSelected, isFocused }: any) => {
       return {
         ...styles,
@@ -192,6 +207,7 @@ const MultiSelect = (props: any) => {
             name="options"
             className="ColorfulOptionsetGrid basic-multi-select"
             classNamePrefix="select"
+            menuPortalTarget={document.body}
             isRtl={true}
             noOptionsMessage={() => "אין אפשרויות"}
       />
@@ -218,6 +234,7 @@ const MultiSelect = (props: any) => {
           name="options"
           className="ColorfulOptionsetGrid basic-multi-select"
           classNamePrefix="select"
+          menuPortalTarget={document.body}
           isRtl
           noOptionsMessage={() => "אין אפשרויות"}
     />

@@ -238,24 +238,48 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
             return;
         }
 
-        const query = `?$select=${cityIdAttribute},${cityNameAttribute}`;
-        context.webAPI.retrieveMultipleRecords(cityEntityName, query)
-            .then((response) => {
-                const result = new Map<string, { label: string; value: string }>();
-                response.entities.forEach((entity) => {
-                    const id = entity[cityIdAttribute] as string | undefined;
-                    const name = entity[cityNameAttribute] as string | undefined;
-                    if (id) {
-                        result.set(id, { label: name ?? id, value: id });
-                    }
-                });
-                const values: Array<{ label: string; value: string }> = [];
-                result.forEach(v => values.push(v));
-                setAllCityOptions(values.sort((a, b) => a.label.localeCompare(b.label)));
-            })
-            .catch(() => {
+        const candidateSelects: Array<[string, string]> = [
+            [cityIdAttribute, cityNameAttribute],
+            ["ey_cityid", "ey_name"],
+            ["mac_cityid", "mac_name"],
+            ["new_cityid", "new_name"]
+        ];
+
+        const tryLoadCities = (index: number) => {
+            if (index >= candidateSelects.length) {
                 setAllCityOptions(null);
-            });
+                return;
+            }
+
+            const [idField, nameField] = candidateSelects[index];
+            const query = `?$select=${idField},${nameField}`;
+
+            context.webAPI.retrieveMultipleRecords(cityEntityName, query)
+                .then((response) => {
+                    const result = new Map<string, { label: string; value: string }>();
+                    response.entities.forEach((entity) => {
+                        const id = entity[idField] as string | undefined;
+                        const name = entity[nameField] as string | undefined;
+                        if (id) {
+                            result.set(id, { label: name ?? id, value: id });
+                        }
+                    });
+
+                    if (result.size === 0) {
+                        tryLoadCities(index + 1);
+                        return;
+                    }
+
+                    const values: Array<{ label: string; value: string }> = [];
+                    result.forEach(v => values.push(v));
+                    setAllCityOptions(values.sort((a, b) => a.label.localeCompare(b.label)));
+                })
+                .catch(() => {
+                    tryLoadCities(index + 1);
+                });
+        };
+
+        tryLoadCities(0);
     }, [isDashboardMode, cityEntityName, cityIdAttribute, cityNameAttribute]);
 
     const effectiveCityOptions = allCityOptions && allCityOptions.length > 0 ? allCityOptions : cityOptions;
@@ -1329,16 +1353,18 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
                             <label className='built-in-filter-text' title={context.parameters.builtInFilterText2?.raw ?? ""}>{context.parameters.builtInFilterText2?.raw ?? ""}</label>
                         </button>
                         <button className={`built-in-filter-btn ${currentBuiltInFilter === (context.parameters.builtInFilterText4?.raw ?? "") ? "clicked" : ""}`} onClick={filterDataSetByStatus}>
-                            <img className='built-in-filter-icon' src='/WebResources/el_all_home_visit_tasks_icon.png'></img>
+                            <span className='built-in-filter-icon' aria-hidden="true">#</span>
                             <label className='built-in-filter-text' title={context.parameters.builtInFilterText4?.raw ?? ""}>{context.parameters.builtInFilterText4?.raw ?? ""}</label>
                         </button>
                     </div>
                 </div>)}
             {context.parameters.showSearchAndFilters.raw == "true" && (
                 <div className='ColorfulOptionsetGrid filter-line'>
-                    <label className="ColorfulOptionsetGrid error-label" hidden={error == ""}><img hidden={error == ""} className="error-icon" src='/WebResources/el_warning_red.png'></img>{error}</label>
+                    <label className="ColorfulOptionsetGrid error-label" hidden={error == ""}><span hidden={error == ""} className="error-icon" aria-hidden="true">!</span>{error}</label>
                     {isDashboardMode && showDashboardFilters && (
                         <form className='ColorfulOptionsetGrid filters-bar' onSubmit={filterDataSet} noValidate>
+                            <input className='ColorfulOptionsetGrid search-word-input' name="searchWordInput" type='search' value={searchWordInput}
+                                onChange={(e) => setSearchWordInput(e.currentTarget.value)} placeholder='חיפוש כללי'></input>
                             <div className="ColorfulOptionsetGrid form-group">
                                 <label>מגדר</label>
                                 <MultiSelect key="gender_filter" options={genderOptions} onChange={(v) => setSelectedGenders([...v])} value={selectedGenders} isSelectAll={true} menuPlacement={"bottom"} />
@@ -1363,7 +1389,7 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
                                 <label>עיר</label>
                                 <MultiSelect key="city_filter" options={effectiveCityOptions} onChange={(v) => setSelectedCities([...v])} value={selectedCities} isSelectAll={true} menuPlacement={"bottom"} />
                             </div>
-                            <button disabled={error != ""} type="submit" className={(error != "") ? 'ColorfulOptionsetGrid search-btn disabled' : 'ColorfulOptionsetGrid search-btn'}><img className="ColorfulOptionsetGrid search-icon" src={(error != "") ? '/WebResources/el_search_icon.png' : '/WebResources/el_search_icon_blue.png'}></img>חיפוש</button>
+                            <button disabled={error != ""} type="submit" className={(error != "") ? 'ColorfulOptionsetGrid search-btn disabled' : 'ColorfulOptionsetGrid search-btn'}><span className="ColorfulOptionsetGrid search-icon" aria-hidden="true">🔎</span>חיפוש</button>
                             <button type="reset" className='ColorfulOptionsetGrid clean-btn' onClick={cleanAllFilters}>ניקוי</button>
                         </form>
                     )}

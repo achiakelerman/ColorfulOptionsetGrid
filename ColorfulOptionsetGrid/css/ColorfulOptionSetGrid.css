@@ -377,6 +377,8 @@ input.ColorfulOptionsetGrid.search-word-input {
 
 .ColorfulOptionsetGrid.search-icon {
     margin-left: 8px;
+    font-size: 14px;
+    line-height: 1;
 }
 
 .ColorfulOptionsetGrid.clean-btn {
@@ -525,6 +527,7 @@ input[type="date"] {
     top: -18px;
     position: relative;
     box-sizing: border-box;
+    min-width: 150px;
 }
 
 .css-13cymwt-control {
@@ -550,14 +553,38 @@ input[type="date"] {
 }
 
 .css-1i837h3-ValueContainer2, .css-1abcu6c-ValueContainer2 {
-    flex-wrap: nowrap;
-    overflow: hidden;
+    flex-wrap: wrap;
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: 56px;
     margin-right: 5px;
     margin-top: 3px;
 }
 
 .css-1p3m7a8-multiValue {
     min-width: auto;
+    max-width: calc(100% - 8px);
+}
+
+.ColorfulOptionsetGrid .built-in-filter-icon {
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 30px;
+    color: #1f5fae;
+}
+
+.ColorfulOptionsetGrid .error-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #d13438;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    margin-left: 5px;
 }
 
 .cellSizer-180 {
