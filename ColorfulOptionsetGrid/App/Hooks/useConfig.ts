@@ -13,7 +13,15 @@ function parseIconConfig(defaultIcon : string, iconConfig ?: string){
     }
 }
 
-export const useConfig= (dataset: DataSet, defaultIcon: string, utils: ComponentFramework.Utility, iconConfig1?:string, iconConfig2?:string, iconConfig3?:string) => {
+export const useConfig= (
+    dataset: DataSet,
+    defaultIcon: string,
+    utils: ComponentFramework.Utility,
+    iconConfig1?: string,
+    iconConfig2?: string,
+    iconConfig3?: string,
+    requiredAttributeNames: string[] = []
+) => {
 
     const [configs, setConfigs] = React.useState<[string, ISetupSchema | undefined][]>([]);
     const [optionSetColumns, setOptionSetColumns ] = React.useState<string[]>([]);
@@ -39,13 +47,23 @@ export const useConfig= (dataset: DataSet, defaultIcon: string, utils: Component
          setDefaultIconNames(new Map((customizedColumnsArray).map((setup) => [setup.column?.name, setup.defaultIconName ] )))
          const myConfigs : [string, ISetupSchema | undefined][]= customizedColumnsArray.map((setup) => [setup.column?.name ?? "", setup.jsonConfig ]);
          setConfigs(myConfigs);
-         const myOptionSetColumns = customizedColumnsArray.length >0  //found customized, or take all optionset columns otherwise
-            ? customizedColumnsArray.map((setup) => setup.column?.name ?? "")
-            : dataset.columns.filter((column) => column.dataType==="OptionSet" || column.dataType==="TwoOptions" || column.dataType==="MultiSelectOptionSet" || column.dataType==="MultiSelectPicklist").map((column) => column.name);
+            const allChoiceColumns = dataset.columns
+                .filter((column) => column.dataType === "OptionSet" || column.dataType === "TwoOptions" || column.dataType === "MultiSelectOptionSet" || column.dataType === "MultiSelectPicklist")
+                .map((column) => column.name);
+
+            const configuredColumns = customizedColumnsArray.length > 0
+                ? customizedColumnsArray.map((setup) => setup.column?.name ?? "")
+                : allChoiceColumns;
+
+            const myOptionSetColumns = Array.from(new Set([
+                ...configuredColumns,
+                ...requiredAttributeNames.filter(Boolean)
+            ]));
+
          setOptionSetColumns(myOptionSetColumns);   
          getAttributes(dataset.getTargetEntityType(), myOptionSetColumns, utils , new Map(myConfigs))
             .then(setMetadataAttributes);
-    }, [dataset]);
+     }, [dataset, requiredAttributeNames]);
     
 
         return {

@@ -135,7 +135,21 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
     const incidentActiveStateCode = parseIntOrDefault(context.parameters.incidentActiveStateCode?.raw, 0);
     const waitingQueueItemStateCode = parseIntOrDefault(context.parameters.waitingQueueItemStateCode?.raw, 1);
     const waitingQueueItemStatusCode = parseIntOrDefault(context.parameters.waitingQueueItemStatusCode?.raw, 2);
-    const { defaultIconNames, metadataAttributes } = useConfig(dataset, defaultIcon, utils, iconConfig1, iconConfig2, iconConfig3);
+
+    const requiredMetadataAttributes = React.useMemo(() => {
+        if (!isDashboardMode) return [];
+        return [genderAttribute, languageAttribute, dayAttribute, timeAttribute, queueTypeAttribute];
+    }, [isDashboardMode, genderAttribute, languageAttribute, dayAttribute, timeAttribute, queueTypeAttribute]);
+
+    const { defaultIconNames, metadataAttributes } = useConfig(
+        dataset,
+        defaultIcon,
+        utils,
+        iconConfig1,
+        iconConfig2,
+        iconConfig3,
+        requiredMetadataAttributes
+    );
     const columnWidthCalculator: ColumnWidthCallback = (column: ComponentFramework.PropertyHelper.DataSetApi.Column, preCalculatedWidth: number) => {
         const isOptionSetRenderer: boolean = metadataAttributes?.has(column.name)
         if (isOptionSetRenderer === false) {
@@ -993,6 +1007,8 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
 
     function filterDataSet(ev: React.FormEvent<HTMLFormElement>): void {
         ev.preventDefault();
+        const data = new FormData(ev.currentTarget);
+        const searchWord = data.get("searchWordInput")?.toString().trim() ?? "";
 
         if (isDashboardMode) {
             const root: ComponentFramework.PropertyHelper.DataSetApi.FilterExpression = {
@@ -1036,6 +1052,10 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
             addInFilter(queueTypeAttribute, selectedQueueTypes.map(s => s.value));
             addInFilter(cityLookupAttribute, selectedCities.map(s => s.value), cityLinkAlias);
 
+            if (searchWord) {
+                root.filters.push(getSearchFilter(searchWord));
+            }
+
             CacheHelper.saveJson<ComponentFramework.PropertyHelper.DataSetApi.FilterExpression>(cacheFilterKey, root);
             context.parameters.dataset.filtering.setFilter(root);
             context.parameters.dataset.refresh();
@@ -1047,8 +1067,7 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
         if (subFilters && subFilters.filters) {
             currentFilter.filters.push(subFilters);
         }
-        const data = new FormData(ev.currentTarget);
-        let searchWord = data.get("searchWordInput");
+        let searchWordValue = searchWord;
         let fromDate = data.get("fromDate");
         let toDate = data.get("toDate");
         let places = selectedPlaces.map(s => s["value"]);
@@ -1076,12 +1095,12 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
         }
         if (isuks && isuks.length != 0) filter.conditions.push({ attributeName: "el_id_isuk_group", conditionOperator: 8, value: isuks });
         if (statuses && statuses.length != 0) filter.conditions.push({ attributeName: "statuscode", conditionOperator: 8, value: statuses });
-        if (searchWord && searchWord != "") currentFilter.filters?.push(getSearchFilter(searchWord.toString()));
+        if (searchWordValue != "") currentFilter.filters?.push(getSearchFilter(searchWordValue));
 
         if (filter.conditions.length != 0 || filter.filters?.length != 0) { currentFilter.filters?.push(filter); }
 
         CacheHelper.saveJson<UIState>(uiKey, {
-            searchWord: searchWord?.toString(),
+            searchWord: searchWordValue,
             fromDate: fromDate?.toString(),
             toDate: toDate?.toString(),
             statusValues: statuses,
