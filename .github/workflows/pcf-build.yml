@@ -27,6 +27,16 @@ jobs:
       - name: Build PCF
         run: npm run build
 
+      - name: Embed dashboard Web Resource content
+        shell: pwsh
+        run: |
+          $htmlPath = "Solution/src/WebResources/el_/TreatmentRequestsDashboard.html"
+          $customizationsPath = "Solution/src/Other/Customizations.xml"
+          $content = [Convert]::ToBase64String([IO.File]::ReadAllBytes($htmlPath))
+          $xml = [IO.File]::ReadAllText($customizationsPath)
+          $xml = $xml.Replace("__TREATMENT_REQUESTS_DASHBOARD_CONTENT__", $content)
+          [IO.File]::WriteAllText($customizationsPath, $xml, [Text.UTF8Encoding]::new($false))
+
       - name: Build Dataverse solution package
         run: dotnet build Solution/Solution.cdsproj -c Release
 
