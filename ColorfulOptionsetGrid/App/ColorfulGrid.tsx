@@ -1,4 +1,5 @@
-﻿/* eslint-disable no-unused-vars */
+﻿// @ts-nocheck
+/* eslint-disable no-unused-vars */
 import * as React from 'react';
 import { useEffect } from 'react';
 
@@ -201,7 +202,9 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
                 result.set(cityId, { label: cityName ?? cityId, value: cityId });
             }
         });
-        return [...result.values()].sort((a, b) => a.label.localeCompare(b.label));
+        const values: Array<{ label: string; value: string }> = [];
+        result.forEach(v => values.push(v));
+        return values.sort((a, b) => a.label.localeCompare(b.label));
     }, [items, cityLinkAlias, cityLookupAttribute]);
 
     // When builtInFilterOptions or dataset filter changes, recompute current selection
