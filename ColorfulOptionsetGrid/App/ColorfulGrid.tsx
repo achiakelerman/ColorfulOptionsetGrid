@@ -118,6 +118,9 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
     const queueAlias = (context.parameters.queueAlias?.raw ?? "queue").trim();
     const cityLinkAlias = (context.parameters.cityLinkAlias?.raw ?? "citylink").trim();
     const cityLookupAttribute = (context.parameters.cityLookupAttribute?.raw ?? "mac_cityid").trim();
+    const cityEntityName = (context.parameters.cityEntityName?.raw ?? "ey_city").trim();
+    const cityIdAttribute = (context.parameters.cityIdAttribute?.raw ?? "ey_cityid").trim();
+    const cityNameAttribute = (context.parameters.cityNameAttribute?.raw ?? "ey_name").trim();
     const requireActiveOnly = (context.parameters.requireActiveOnly?.raw ?? "true") === "true";
     const showDashboardFilters = (context.parameters.showDashboardFilters?.raw ?? "true") === "true";
 
@@ -178,6 +181,7 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
     const [selectedTimes, setSelectedTimes] = React.useState<any[]>([]);
     const [selectedQueueTypes, setSelectedQueueTypes] = React.useState<any[]>([]);
     const [selectedCities, setSelectedCities] = React.useState<any[]>([]);
+    const [allCityOptions, setAllCityOptions] = React.useState<Array<{ label: string; value: string }> | null>(null);
 
     const [builtInFilterOptions, setBuiltInFilterOptions] = React.useState<any[]>([]);
 
@@ -220,6 +224,34 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
         result.forEach(v => values.push(v));
         return values.sort((a, b) => a.label.localeCompare(b.label));
     }, [items, cityLinkAlias, cityLookupAttribute]);
+
+    React.useEffect(() => {
+        if (!isDashboardMode) {
+            setAllCityOptions(null);
+            return;
+        }
+
+        const query = `?$select=${cityIdAttribute},${cityNameAttribute}`;
+        context.webAPI.retrieveMultipleRecords(cityEntityName, query)
+            .then((response) => {
+                const result = new Map<string, { label: string; value: string }>();
+                response.entities.forEach((entity) => {
+                    const id = entity[cityIdAttribute] as string | undefined;
+                    const name = entity[cityNameAttribute] as string | undefined;
+                    if (id) {
+                        result.set(id, { label: name ?? id, value: id });
+                    }
+                });
+                const values: Array<{ label: string; value: string }> = [];
+                result.forEach(v => values.push(v));
+                setAllCityOptions(values.sort((a, b) => a.label.localeCompare(b.label)));
+            })
+            .catch(() => {
+                setAllCityOptions(null);
+            });
+    }, [isDashboardMode, cityEntityName, cityIdAttribute, cityNameAttribute]);
+
+    const effectiveCityOptions = allCityOptions && allCityOptions.length > 0 ? allCityOptions : cityOptions;
 
     // When builtInFilterOptions or dataset filter changes, recompute current selection
     useEffect(() => {
@@ -1316,7 +1348,7 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
                             </div>
                             <div className="ColorfulOptionsetGrid form-group">
                                 <label>עיר</label>
-                                <MultiSelect key="city_filter" options={cityOptions} onChange={(v) => setSelectedCities([...v])} value={selectedCities} isSelectAll={true} menuPlacement={"bottom"} />
+                                <MultiSelect key="city_filter" options={effectiveCityOptions} onChange={(v) => setSelectedCities([...v])} value={selectedCities} isSelectAll={true} menuPlacement={"bottom"} />
                             </div>
                             <button disabled={error != ""} type="submit" className={(error != "") ? 'ColorfulOptionsetGrid search-btn disabled' : 'ColorfulOptionsetGrid search-btn'}><img className="ColorfulOptionsetGrid search-icon" src={(error != "") ? '/WebResources/el_search_icon.png' : '/WebResources/el_search_icon_blue.png'}></img>חיפוש</button>
                             <button type="reset" className='ColorfulOptionsetGrid clean-btn' onClick={cleanAllFilters}>ניקוי</button>
