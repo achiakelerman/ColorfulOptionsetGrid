@@ -188,6 +188,7 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
     const [selectedTimes, setSelectedTimes] = React.useState<any[]>([]);
     const [selectedQueueTypes, setSelectedQueueTypes] = React.useState<any[]>([]);
     const [selectedCities, setSelectedCities] = React.useState<any[]>([]);
+    const [applyClientCityFilter, setApplyClientCityFilter] = React.useState<boolean>(false);
     const [allCityOptions, setAllCityOptions] = React.useState<Array<{ label: string; value: string }> | null>(null);
 
     const [builtInFilterOptions, setBuiltInFilterOptions] = React.useState<any[]>([]);
@@ -392,42 +393,66 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
     }, [allCityOptions, cityOptions, cityOptionsFromColumns]);
 
     const filteredItems = React.useMemo(() => {
-        if (!isDashboardMode || selectedCities.length === 0) {
+        if (!isDashboardMode || !applyClientCityFilter || selectedCities.length === 0) {
             return items;
         }
 
-        const selected = new Set<string>();
+        const normalize = (v: any) => String(v ?? "").trim().toLowerCase();
+        const guidPattern = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
+
+        const selectedLabels = new Set<string>();
+        const selectedValues = new Set<string>();
+
         selectedCities.forEach((c: any) => {
-            if (c?.label) selected.add(String(c.label).trim().toLowerCase());
-            if (c?.value) selected.add(String(c.value).trim().toLowerCase());
+            if (c?.label) selectedLabels.add(normalize(c.label));
+            if (c?.value) selectedValues.add(normalize(c.value));
         });
 
-        if (selected.size === 0) {
+        if (selectedLabels.size === 0 && selectedValues.size === 0) {
             return items;
         }
 
         return items.filter((item) => {
-            const keys = Object.keys(item);
-            const candidateKeys = keys.filter((k) => {
-                const lower = k.toLowerCase();
-                return (
-                    lower.includes("city") ||
-                    lower.includes("district") ||
-                    lower.endsWith(`${cityLookupAttribute.toLowerCase()}name`) ||
-                    lower.endsWith(cityLookupAttribute.toLowerCase())
-                );
+            const rowValues: string[] = [];
+            Object.keys(item).forEach((key) => {
+                if (key === "raw" || key === "key") return;
+                const value = item[key];
+                if (value == null) return;
+                rowValues.push(normalize(value));
             });
 
-            for (const key of candidateKeys) {
-                const value = item[key];
-                if (value != null && selected.has(String(value).trim().toLowerCase())) {
+            if (rowValues.length === 0) {
+                return false;
+            }
+
+            for (const rowValue of rowValues) {
+                if (!rowValue) continue;
+
+                if (selectedLabels.has(rowValue)) {
                     return true;
+                }
+
+                if (selectedValues.has(rowValue)) {
+                    return true;
+                }
+
+                if (!guidPattern.test(rowValue)) {
+                    for (const selectedLabel of selectedLabels) {
+                        if (selectedLabel && rowValue.includes(selectedLabel)) {
+                            return true;
+                        }
+                    }
                 }
             }
 
             return false;
         });
-    }, [isDashboardMode, items, selectedCities, cityLookupAttribute]);
+    }, [isDashboardMode, applyClientCityFilter, items, selectedCities]);
+
+    React.useEffect(() => {
+        if (!isDashboardMode) return;
+        setApplyClientCityFilter(false);
+    }, [isDashboardMode, selectedCities]);
 
     // When builtInFilterOptions or dataset filter changes, recompute current selection
     useEffect(() => {
@@ -1091,6 +1116,7 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
         setSelectedTimes([]);
         setSelectedQueueTypes([]);
         setSelectedCities([]);
+        setApplyClientCityFilter(false);
 
         setSelectedPlaces([]);
         setSelectedVisitUnitStatuses([]);
@@ -1238,6 +1264,7 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
         const searchWord = data.get("searchWordInput")?.toString().trim() ?? "";
 
         if (isDashboardMode) {
+            setApplyClientCityFilter(selectedCities.length > 0);
             const root: ComponentFramework.PropertyHelper.DataSetApi.FilterExpression = {
                 conditions: [],
                 filterOperator: 0,
@@ -1629,7 +1656,7 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
                     containerHeight={containerHeight} dataset={dataset} isSubgrid={isSubgrid}
                     selectedCount={selectedCount} selection={selection}
                     setFullScreen={setFullScreen} updatedProperties={updatedProperties}>
-                    {(items && items.length > 0) ? (
+                    {(filteredItems && filteredItems.length > 0) ? (
                         <DetailsList
                             setKey="items"
                             onRenderDetailsHeader={gridHeader(onColumnClick)}
