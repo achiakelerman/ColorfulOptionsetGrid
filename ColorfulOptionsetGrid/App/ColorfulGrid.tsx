@@ -89,6 +89,7 @@ export interface IColorfulGridProps {
     subFilters: ComponentFramework.PropertyHelper.DataSetApi.FilterExpression;
     cacheFilterKey: string;
     updatedProperties: string[];
+    dashboardConfigurationError?: string;
 }
 
 export const ColorfulGrid = React.memo(function ColorfulGridApp({
@@ -110,7 +111,8 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
     userIsukGroups,
     subFilters,
     cacheFilterKey,
-    updatedProperties
+    updatedProperties,
+    dashboardConfigurationError
 }: IColorfulGridProps): JSX.Element {
     const entityName = "el_homevisit_task";
     const isDashboardMode = context.parameters.dashboardMode?.raw === "THERAPIST" || context.parameters.dashboardMode?.raw === "PROVIDER";
@@ -125,7 +127,7 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
     const cityLookupAttribute = (context.parameters.cityLookupAttribute?.raw ?? "mac_cityid").trim();
     const cityEntityName = (context.parameters.cityEntityName?.raw ?? "ey_city").trim();
     const cityIdAttribute = (context.parameters.cityIdAttribute?.raw ?? "ey_cityid").trim();
-    const cityNameAttribute = (context.parameters.cityNameAttribute?.raw ?? "ey_name").trim();
+    const cityNameAttribute = (context.parameters.cityNameAttribute?.raw ?? "ey_s_name").trim();
     const requireActiveOnly = (context.parameters.requireActiveOnly?.raw ?? "true") === "true";
     const showDashboardFilters = (context.parameters.showDashboardFilters?.raw ?? "true") === "true";
 
@@ -185,7 +187,7 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
     const [fromDate, setFromDate] = React.useState("");
     const [toDate, setToDate] = React.useState("");
     const [searchWordInput, setSearchWordInput] = React.useState("");
-    const [error, setError] = React.useState("");
+    const [error, setError] = React.useState(dashboardConfigurationError ?? "");
 
     const [selectedGenders, setSelectedGenders] = React.useState<any[]>([]);
     const [selectedLanguages, setSelectedLanguages] = React.useState<any[]>([]);
@@ -265,110 +267,28 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
             return values.sort((a, b) => a.label.localeCompare(b.label));
         };
 
-        const cityEntityCandidates = Array.from(new Set([
-            cityEntityName,
-            "ey_city",
-            "mac_city",
-            "new_city"
-        ].filter(Boolean)));
-
-        const candidateSelects: Array<[string, string]> = [
-            [cityIdAttribute, cityNameAttribute],
-            ["ey_cityid", "ey_name"],
-            ["mac_cityid", "mac_name"],
-            ["new_cityid", "new_name"]
-        ];
-
-        const tryLoadFromLinkEntity = () => {
-            const linkEntityCandidates = [
-                "mac_incident_ey_city",
-                "ey_incident_city",
-                "new_incident_city"
-            ];
-            const linkLookupCandidates = ["mac_cityid", "ey_cityid", "new_cityid"];
-
-            const tryLink = (entityIndex: number, lookupIndex: number) => {
-                if (entityIndex >= linkEntityCandidates.length) {
-                    setAllCityOptions(null);
-                    return;
-                }
-                if (lookupIndex >= linkLookupCandidates.length) {
-                    tryLink(entityIndex + 1, 0);
-                    return;
-                }
-
-                const linkEntityName = linkEntityCandidates[entityIndex];
-                const lookupField = linkLookupCandidates[lookupIndex];
-                const query = `?$select=${lookupField}`;
-
-                context.webAPI.retrieveMultipleRecords(linkEntityName, query)
-                    .then((response) => {
-                        const result = new Map<string, { label: string; value: string }>();
-                        response.entities.forEach((entity) => {
-                            const id = (entity[`_${lookupField}_value`] ?? entity[lookupField]) as string | undefined;
-                            const name = (
-                                entity[`_${lookupField}_value@OData.Community.Display.V1.FormattedValue`] ??
-                                entity[`${lookupField}@OData.Community.Display.V1.FormattedValue`]
-                            ) as string | undefined;
-                            if (id) {
-                                result.set(id, { label: name ?? id, value: id });
-                            }
-                        });
-
-                        if (result.size === 0) {
-                            tryLink(entityIndex, lookupIndex + 1);
-                            return;
-                        }
-
-                        setAllCityOptions(toSortedOptions(result));
-                    })
-                    .catch(() => {
-                        tryLink(entityIndex, lookupIndex + 1);
-                    });
-            };
-
-            tryLink(0, 0);
-        };
-
-        const tryLoadCities = (entityIndex: number, fieldIndex: number) => {
-            if (entityIndex >= cityEntityCandidates.length) {
-                tryLoadFromLinkEntity();
-                return;
-            }
-            if (fieldIndex >= candidateSelects.length) {
-                tryLoadCities(entityIndex + 1, 0);
-                return;
-            }
-
-            const entityName = cityEntityCandidates[entityIndex];
-            const [idField, nameField] = candidateSelects[fieldIndex];
-            const query = `?$select=${idField},${nameField}`;
-
-            context.webAPI.retrieveMultipleRecords(entityName, query)
-                .then((response) => {
-                    const result = new Map<string, { label: string; value: string }>();
-                    response.entities.forEach((entity) => {
-                        const id = entity[idField] as string | undefined;
-                        const name = entity[nameField] as string | undefined;
-                        if (id) {
-                            result.set(id, { label: name ?? id, value: id });
-                        }
-                    });
-
-                    if (result.size === 0) {
-                        tryLoadCities(entityIndex, fieldIndex + 1);
-                        return;
+        const query = `?$select=${cityIdAttribute},${cityNameAttribute}&$orderby=${cityNameAttribute} asc`;
+        context.webAPI.retrieveMultipleRecords(cityEntityName, query)
+            .then((response) => {
+                const result = new Map<string, { label: string; value: string }>();
+                response.entities.forEach((entity) => {
+                    const id = entity[cityIdAttribute] as string | undefined;
+                    const name = entity[cityNameAttribute] as string | undefined;
+                    if (id) {
+                        result.set(id, { label: name ?? id, value: id });
                     }
-
-                    setAllCityOptions(toSortedOptions(result));
-                })
-                .catch(() => {
-                    tryLoadCities(entityIndex, fieldIndex + 1);
                 });
-        };
-
-        tryLoadCities(0, 0);
+                setAllCityOptions(toSortedOptions(result));
+            })
+            .catch(() => {
+                setAllCityOptions(null);
+                setError("לא ניתן לטעון את רשימת הערים. יש לבדוק את הגדרת העיר ואת ההרשאות.");
+            });
     }, [isDashboardMode, cityEntityName, cityIdAttribute, cityNameAttribute]);
+
+    React.useEffect(() => {
+        setError(dashboardConfigurationError ?? "");
+    }, [dashboardConfigurationError]);
 
     const effectiveCityOptions = (allCityOptions && allCityOptions.length > 0)
         ? allCityOptions
@@ -1044,11 +964,12 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
         setFromDate("");
         setToDate("");
         setSearchWordInput("");
-        setError("");
+        setError(dashboardConfigurationError ?? "");
     }
 
     function cleanFilters(): void {
         if (isDashboardMode) {
+            if (dashboardConfigurationError) return;
             const root: ComponentFramework.PropertyHelper.DataSetApi.FilterExpression = {
                 conditions: [],
                 filterOperator: 0,
@@ -1163,6 +1084,7 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
         const searchWord = data.get("searchWordInput")?.toString().trim() ?? "";
 
         if (isDashboardMode) {
+            if (dashboardConfigurationError) return;
             const root: ComponentFramework.PropertyHelper.DataSetApi.FilterExpression = {
                 conditions: [],
                 filterOperator: 0,
@@ -1185,6 +1107,11 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
             addInFilter(languageAttribute, selectedLanguages.map(s => s.value));
             addInFilter(timeAttribute, selectedTimes.map(s => s.value));
             addInFilter(queueTypeAttribute, selectedQueueTypes.map(s => s.value));
+            if (selectedCities.length > 0 && !hasCityLinkAlias) {
+                setError("תצורת הדשבורד שגויה: ה-View חייב לכלול את הקישור citylink לסינון עיר.");
+                return;
+            }
+
             if (hasCityLinkAlias) {
                 const selectedCityValues = selectedCities.map(s => s.value);
                 const selectedCityGuids = selectedCityValues.filter(v => typeof v === "string" && /^[0-9a-fA-F-]{32,36}$/.test(v as string));

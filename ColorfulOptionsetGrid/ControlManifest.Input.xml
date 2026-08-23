@@ -2,7 +2,7 @@
 <manifest>
   <control namespace="Elad" 
            constructor="ColorfulOptionsetGrid" 
-           version="0.3.43"
+           version="0.3.44"
            display-name-key="Elad_ColorfulOptionsetGrid" 
            description-key="Elad_ColorfulOptionsetGrid_Description"
            control-type="virtual" preview-image="css/imgs/Preview.png">
@@ -81,6 +81,8 @@
     <property name="queueAlias" display-name-key="queueAlias" description-key="Entity alias for queue in the source view" of-type="SingleLine.Text" usage="input" required="false" default-value="queue" />
     <property name="waitingQueueItemStateCode" display-name-key="waitingQueueItemStateCode" description-key="StateCode value that means waiting on queueitem" of-type="SingleLine.Text" usage="input" required="false" default-value="1" />
     <property name="waitingQueueItemStatusCode" display-name-key="waitingQueueItemStatusCode" description-key="StatusCode value that means waiting on queueitem" of-type="SingleLine.Text" usage="input" required="false" default-value="2" />
+    <property name="priorityAttribute" display-name-key="priorityAttribute" description-key="Incident field used for urgent-first default sorting" of-type="SingleLine.Text" usage="input" required="false" default-value="prioritycode" />
+    <property name="createdOnAttribute" display-name-key="createdOnAttribute" description-key="Incident field used as the secondary default sort" of-type="SingleLine.Text" usage="input" required="false" default-value="createdon" />
     <property name="genderAttribute" display-name-key="genderAttribute" description-key="Incident field for gender filter" of-type="SingleLine.Text" usage="input" required="false" default-value="mac_p_member_gender" />
     <property name="languageAttribute" display-name-key="languageAttribute" description-key="Incident field for language filter" of-type="SingleLine.Text" usage="input" required="false" default-value="mac_p_preferred_language" />
     <property name="dayAttribute" display-name-key="dayAttribute" description-key="Incident field for day filter" of-type="SingleLine.Text" usage="input" required="false" default-value="mac_p_preffered_day" />
@@ -90,7 +92,7 @@
     <property name="cityLookupAttribute" display-name-key="cityLookupAttribute" description-key="Lookup field name to city on the city link entity" of-type="SingleLine.Text" usage="input" required="false" default-value="mac_cityid" />
     <property name="cityEntityName" display-name-key="cityEntityName" description-key="City table logical name for loading all city options" of-type="SingleLine.Text" usage="input" required="false" default-value="ey_city" />
     <property name="cityIdAttribute" display-name-key="cityIdAttribute" description-key="City table primary key logical name" of-type="SingleLine.Text" usage="input" required="false" default-value="ey_cityid" />
-    <property name="cityNameAttribute" display-name-key="cityNameAttribute" description-key="City table name logical name" of-type="SingleLine.Text" usage="input" required="false" default-value="ey_name" />
+    <property name="cityNameAttribute" display-name-key="cityNameAttribute" description-key="City table name logical name" of-type="SingleLine.Text" usage="input" required="false" default-value="ey_s_name" />
     <property name="showDashboardFilters" display-name-key="showDashboardFilters" description-key="Show dashboard search filters" of-type="Enum" usage="input" required="true" default-value="true">
       <value name="false" display-name-key="false" description-key="Hide dashboard search filters">false</value>
       <value name="true" display-name-key="true" description-key="Show dashboard search filters">true</value>

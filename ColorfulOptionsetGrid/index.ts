@@ -19,6 +19,7 @@ export class ColorfulOptionsetGrid implements ComponentFramework.ReactControl<II
     private _cacheFilterKey: string;
     private _cacheSubFilterKey: string;
     private _isDashboardMode: boolean = false;
+    private _dashboardConfigurationError: string | undefined;
 
     constructor() {
 
@@ -55,6 +56,8 @@ export class ColorfulOptionsetGrid implements ComponentFramework.ReactControl<II
             this._employeeJobs = [];
             this._userIsukGroups = [];
             this.subFilters = { conditions: [], filterOperator: 0, filters: [] };
+            this._dashboardConfigurationError = this.getDashboardConfigurationError(context)
+                ?? this.applyDashboardDefaultSort(context);
             this.applyDashboardBaseFilter(context);
             return;
         }
@@ -138,8 +141,6 @@ export class ColorfulOptionsetGrid implements ComponentFramework.ReactControl<II
      * @param context The entire property bag available to control via Context Object; It contains values as set up by the customizer mapped to names defined in the manifest, as well as utility functions
      */
     public updateView(context: ComponentFramework.Context<IInputs>): React.ReactElement {
-        console.log(context.updatedProperties);
-
         if (this._isDashboardMode && !this._isLoading) {
             const props: IColorfulGridProps = {
                 context: context,
@@ -160,7 +161,8 @@ export class ColorfulOptionsetGrid implements ComponentFramework.ReactControl<II
                 userIsukGroups: [],
                 subFilters: this.subFilters,
                 cacheFilterKey: this._cacheFilterKey,
-                updatedProperties: context.updatedProperties
+                updatedProperties: context.updatedProperties,
+                dashboardConfigurationError: this._dashboardConfigurationError
             };
             return React.createElement(ColorfulGrid, props);
         }
@@ -207,6 +209,42 @@ export class ColorfulOptionsetGrid implements ComponentFramework.ReactControl<II
         return dataset.columns.some((column) => column.name === alias || column.name.startsWith(`${alias}.`));
     }
 
+    private getDashboardConfigurationError(context: ComponentFramework.Context<IInputs>): string | undefined {
+        const queueItemAlias = (context.parameters.queueItemAlias.raw ?? "queueitem").trim();
+        const queueAlias = (context.parameters.queueAlias.raw ?? "queue").trim();
+        const cityLinkAlias = (context.parameters.cityLinkAlias.raw ?? "citylink").trim();
+        const missingAliases = [queueItemAlias, queueAlias, cityLinkAlias]
+            .filter((alias) => !this.datasetHasAlias(context.parameters.dataset, alias));
+
+        if (missingAliases.length > 0) {
+            return `תצורת הדשבורד שגויה: ה-View חייב לכלול את הקישורים ${missingAliases.join(", ")}.`;
+        }
+
+        return undefined;
+    }
+
+    private applyDashboardDefaultSort(context: ComponentFramework.Context<IInputs>): string | undefined {
+        if (context.parameters.dataset.sorting.length > 0) {
+            return undefined;
+        }
+
+        const priorityAttribute = (context.parameters.priorityAttribute?.raw ?? "prioritycode").trim();
+        const createdOnAttribute = (context.parameters.createdOnAttribute?.raw ?? "createdon").trim();
+        const missingSortAttributes = [priorityAttribute, createdOnAttribute]
+            .filter((attribute) => !context.parameters.dataset.columns.some((column) => column.name === attribute));
+
+        if (missingSortAttributes.length > 0) {
+            return `תצורת הדשבורד שגויה: ה-View חייב לכלול את השדות ${missingSortAttributes.join(", ")} עבור מיון ברירת המחדל.`;
+        }
+
+        context.parameters.dataset.sorting.push(
+            { name: priorityAttribute, sortDirection: 0 },
+            { name: createdOnAttribute, sortDirection: 0 }
+        );
+
+        return undefined;
+    }
+
     private applyDashboardBaseFilter(context: ComponentFramework.Context<IInputs>): void {
         const mode = context.parameters.dashboardMode.raw;
         const therapistQueueName = (context.parameters.therapistQueueName.raw ?? "בקשות לטיפול מטפלים").trim();
@@ -229,6 +267,19 @@ export class ColorfulOptionsetGrid implements ComponentFramework.ReactControl<II
             filterOperator,
             filters: []
         };
+
+        if (this._dashboardConfigurationError) {
+            filter.conditions.push({
+                attributeName: "incidentid",
+                conditionOperator: 0,
+                value: "00000000-0000-0000-0000-000000000000"
+            });
+            CacheHelper.saveJson<ComponentFramework.PropertyHelper.DataSetApi.FilterExpression>(this._cacheFilterKey, filter);
+            context.parameters.dataset.filtering.setFilter(filter);
+            context.parameters.dataset.refresh();
+            this._isLoading = false;
+            return;
+        }
 
         if (requireActiveOnly) {
             filter.conditions.push({ attributeName: "statecode", conditionOperator: 0, value: incidentActiveState.toString() });
