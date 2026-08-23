@@ -188,7 +188,6 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
     const [selectedTimes, setSelectedTimes] = React.useState<any[]>([]);
     const [selectedQueueTypes, setSelectedQueueTypes] = React.useState<any[]>([]);
     const [selectedCities, setSelectedCities] = React.useState<any[]>([]);
-    const [applyClientCityFilter, setApplyClientCityFilter] = React.useState<boolean>(false);
     const [allCityOptions, setAllCityOptions] = React.useState<Array<{ label: string; value: string }> | null>(null);
 
     const [builtInFilterOptions, setBuiltInFilterOptions] = React.useState<any[]>([]);
@@ -368,139 +367,9 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
         tryLoadCities(0, 0);
     }, [isDashboardMode, cityEntityName, cityIdAttribute, cityNameAttribute]);
 
-    const effectiveCityOptions = React.useMemo(() => {
-        const merged = new Map<string, { label: string; value: string }>();
-
-        const add = (list: Array<{ label: string; value: string }> | null | undefined) => {
-            if (!list) return;
-            list.forEach((item) => {
-                const key = `${item.value}`.trim();
-                const label = `${item.label}`.trim();
-                if (!key || !label) return;
-                if (!merged.has(key)) {
-                    merged.set(key, { label, value: key });
-                }
-            });
-        };
-
-        add(allCityOptions);
-        add(cityOptions);
-        add(cityOptionsFromColumns);
-
-        const values: Array<{ label: string; value: string }> = [];
-        merged.forEach(v => values.push(v));
-        return values.sort((a, b) => a.label.localeCompare(b.label));
-    }, [allCityOptions, cityOptions, cityOptionsFromColumns]);
-
-    const guidPattern = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
-
-    const resolveIncidentIdsByCityGuids = async (cityGuids: string[]): Promise<string[] | null> => {
-        if (!cityGuids || cityGuids.length === 0) return null;
-
-        const linkEntityCandidates: Array<{ entity: string; incidentAttr: string; cityAttr: string }> = [
-            { entity: "mac_incident_ey_city", incidentAttr: "mac_incidentid", cityAttr: "mac_cityid" },
-            { entity: "ey_incident_city", incidentAttr: "ey_incidentid", cityAttr: "ey_cityid" },
-            { entity: "new_incident_city", incidentAttr: "new_incidentid", cityAttr: "new_cityid" }
-        ];
-
-        for (const candidate of linkEntityCandidates) {
-            try {
-                const valuesXml = cityGuids.map((id) => `<value>${id}</value>`).join("");
-                const fetchXml =
-                    `<fetch distinct='true'>` +
-                    `<entity name='${candidate.entity}'>` +
-                    `<attribute name='${candidate.incidentAttr}'/>` +
-                    `<filter>` +
-                    `<condition attribute='${candidate.cityAttr}' operator='in'>${valuesXml}</condition>` +
-                    `</filter>` +
-                    `</entity>` +
-                    `</fetch>`;
-
-                const response = await context.webAPI.retrieveMultipleRecords(
-                    candidate.entity,
-                    `?fetchXml=${encodeURIComponent(fetchXml)}`
-                );
-
-                const ids = new Set<string>();
-                response.entities.forEach((e: any) => {
-                    const incidentId = e[candidate.incidentAttr];
-                    if (incidentId && guidPattern.test(String(incidentId))) {
-                        ids.add(String(incidentId));
-                    }
-                });
-
-                if (ids.size > 0) {
-                    return Array.from(ids);
-                }
-            } catch {
-                // Try next candidate entity/field mapping.
-            }
-        }
-
-        return [];
-    };
-
-    const filteredItems = React.useMemo(() => {
-        if (!isDashboardMode || !applyClientCityFilter || selectedCities.length === 0) {
-            return items;
-        }
-
-        const normalize = (v: any) => String(v ?? "").trim().toLowerCase();
-        const guidPattern = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
-
-        const selectedLabels = new Set<string>();
-        const selectedValues = new Set<string>();
-
-        selectedCities.forEach((c: any) => {
-            if (c?.label) selectedLabels.add(normalize(c.label));
-            if (c?.value) selectedValues.add(normalize(c.value));
-        });
-
-        if (selectedLabels.size === 0 && selectedValues.size === 0) {
-            return items;
-        }
-
-        return items.filter((item) => {
-            const rowValues: string[] = [];
-            Object.keys(item).forEach((key) => {
-                if (key === "raw" || key === "key") return;
-                const value = item[key];
-                if (value == null) return;
-                rowValues.push(normalize(value));
-            });
-
-            if (rowValues.length === 0) {
-                return false;
-            }
-
-            for (const rowValue of rowValues) {
-                if (!rowValue) continue;
-
-                if (selectedLabels.has(rowValue)) {
-                    return true;
-                }
-
-                if (selectedValues.has(rowValue)) {
-                    return true;
-                }
-
-                if (!guidPattern.test(rowValue)) {
-                    for (const selectedLabel of selectedLabels) {
-                        if (selectedLabel && rowValue.includes(selectedLabel)) {
-                            return true;
-                        }
-                    }
-                }
-            }
-
-            return false;
-        });
-    }, [isDashboardMode, applyClientCityFilter, items, selectedCities]);
-
-    React.useEffect(() => {
-        if (!isDashboardMode) return;
-        setApplyClientCityFilter(false);
-    }, [isDashboardMode, selectedCities]);
+    const effectiveCityOptions = (allCityOptions && allCityOptions.length > 0)
+        ? allCityOptions
+        : (cityOptions.length > 0 ? cityOptions : cityOptionsFromColumns);
 
     // When builtInFilterOptions or dataset filter changes, recompute current selection
     useEffect(() => {
@@ -571,11 +440,6 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
     function useStatuses(): any[] | undefined {
         const [statusOptions, setStatusOptions] = React.useState<any[] | undefined>(undefined);
         useEffect(() => {
-            if (isDashboardMode) {
-                setStatusOptions([]);
-                return;
-            }
-
             const options = builtInFilterOptions.filter(o => o.label == currentBuiltInFilter);
             if (options && options[0] && options[0].value) {
                 const statusMetadata = metadataAttributes.get("statuscode");
@@ -602,11 +466,6 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
         const [regionOptions, setRegionOptions] = React.useState<any[] | undefined>(undefined);
 
         React.useEffect(() => {
-            if (isDashboardMode) {
-                setRegionOptions([]);
-                return;
-            }
-
             if (employeeJobs && employeeJobs.length > 0) {
                 var regions = employeeJobs.map(e => { if (e["_el_id_region_value"]) return "el_regionid eq '" + e["_el_id_region_value"] + "'"; });
                 var filter = "?$select=el_s_region_name,el_regionid&$filter=" + regions.filter(x => x != undefined).join(" or ");
@@ -639,10 +498,6 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
         const [visitUnitStatusOptions, setVisitUnitStatusOptions] = React.useState<any[] | undefined>(undefined);
 
         React.useEffect(() => {
-            if (isDashboardMode) {
-                setVisitUnitStatusOptions([]);
-                return;
-            }
 
             var VisitUnitStatus = [{
                 value: 2,
@@ -1178,7 +1033,6 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
         setSelectedTimes([]);
         setSelectedQueueTypes([]);
         setSelectedCities([]);
-        setApplyClientCityFilter(false);
 
         setSelectedPlaces([]);
         setSelectedVisitUnitStatuses([]);
@@ -1320,13 +1174,12 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
         return filter;
     }
 
-    async function filterDataSet(ev: React.FormEvent<HTMLFormElement>): Promise<void> {
+    function filterDataSet(ev: React.FormEvent<HTMLFormElement>): void {
         ev.preventDefault();
         const data = new FormData(ev.currentTarget);
         const searchWord = data.get("searchWordInput")?.toString().trim() ?? "";
 
         if (isDashboardMode) {
-            setApplyClientCityFilter(selectedCities.length > 0 && !hasCityLinkAlias);
             const root: ComponentFramework.PropertyHelper.DataSetApi.FilterExpression = {
                 conditions: [],
                 filterOperator: 0,
@@ -1353,28 +1206,11 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
                 });
             }
 
-            const getConditionOperatorForAttribute = (attributeName: string, entityAliasName?: string): number => {
-                const candidates = context.parameters.dataset.columns.filter((c) => {
-                    if (entityAliasName) {
-                        return c.name === `${entityAliasName}.${attributeName}`;
-                    }
-                    return c.name === attributeName || c.name.endsWith(`.${attributeName}`);
-                });
-
-                const dataType = candidates[0]?.dataType;
-                if (dataType === "MultiSelectOptionSet" || dataType === "MultiSelectPicklist") {
-                    // Dataverse "contain-values" for MultiSelect columns.
-                    return 87;
-                }
-
-                return 8;
-            };
-
             const addInFilter = (attributeName: string, values: any[], entityAliasName?: string) => {
                 if (values.length === 0) return;
                 root.conditions.push({
                     attributeName,
-                    conditionOperator: getConditionOperatorForAttribute(attributeName, entityAliasName),
+                    conditionOperator: 8,
                     value: values,
                     entityAliasName
                 });
@@ -1385,45 +1221,16 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
             addInFilter(dayAttribute, selectedDays.map(s => s.value));
             addInFilter(timeAttribute, selectedTimes.map(s => s.value));
             addInFilter(queueTypeAttribute, selectedQueueTypes.map(s => s.value));
-            const selectedCityValues = selectedCities.map(s => String(s.value ?? "").trim()).filter(Boolean);
-            const selectedCityLabels = selectedCities.map(s => String(s.label ?? "").trim()).filter(Boolean);
-            const selectedCityGuids = selectedCityValues.filter(v => guidPattern.test(v));
-
-            // Keep alias-based filtering when available.
             if (hasCityLinkAlias) {
-                const selectedCityNames = selectedCityValues.filter(v => !guidPattern.test(v));
+                const selectedCityValues = selectedCities.map(s => s.value);
+                const selectedCityGuids = selectedCityValues.filter(v => typeof v === "string" && /^[0-9a-fA-F-]{32,36}$/.test(v as string));
+                const selectedCityNames = selectedCityValues.filter(v => !(typeof v === "string" && /^[0-9a-fA-F-]{32,36}$/.test(v as string)));
+
                 if (selectedCityGuids.length > 0) {
                     addInFilter(cityLookupAttribute, selectedCityGuids, cityLinkAlias);
                 }
                 if (selectedCityNames.length > 0) {
                     addInFilter(`${cityLookupAttribute}name`, selectedCityNames, cityLinkAlias);
-                }
-            }
-
-            // Alias-independent fallback: resolve incident IDs by selected city and filter directly on incidentid.
-            if (selectedCities.length > 0) {
-                const guidByLabel = new Map<string, string>();
-                effectiveCityOptions.forEach((opt) => {
-                    const value = String(opt.value ?? "").trim();
-                    const label = String(opt.label ?? "").trim();
-                    if (guidPattern.test(value) && label) {
-                        guidByLabel.set(label.toLowerCase(), value);
-                    }
-                });
-
-                const extraGuidsFromLabels = selectedCityLabels
-                    .map((label) => guidByLabel.get(label.toLowerCase()))
-                    .filter((v): v is string => !!v);
-
-                const cityGuidsForResolution = Array.from(new Set([...selectedCityGuids, ...extraGuidsFromLabels]));
-                if (cityGuidsForResolution.length > 0) {
-                    const incidentIds = await resolveIncidentIdsByCityGuids(cityGuidsForResolution);
-                    if (incidentIds && incidentIds.length > 0) {
-                        addInFilter("incidentid", incidentIds);
-                    } else if (incidentIds && incidentIds.length === 0) {
-                        // Force empty result set when selected cities have no matching incidents.
-                        root.conditions.push({ attributeName: "incidentid", conditionOperator: 0, value: "00000000-0000-0000-0000-000000000000" });
-                    }
                 }
             }
 
@@ -1615,10 +1422,6 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
     }
 
     function IsLoading() {
-        if (isDashboardMode) {
-            return false;
-        }
-
         return !(builtInFilterCount1 != undefined
             && builtInFilterCount1 != -1
             && builtInFilterCount2 != undefined
@@ -1633,7 +1436,7 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
     return (<>
         {(IsLoading()) && <LoadingGIF />}
         {(!IsLoading()) && <div className='ColorfulOptionsetGrid pcf-container'>
-            {context.parameters.showSearchAndFilters.raw == "true" && !isDashboardMode && (
+            {context.parameters.showSearchAndFilters.raw == "true" && (
                 <div className='ColorfulOptionsetGrid header-bar'>
                     <div className='ColorfulOptionsetGrid built-in-filters'>
                         <button className={`built-in-filter-btn ${currentBuiltInFilter === (context.parameters.builtInFilterText1?.raw ?? "") ? "clicked" : ""}`} onClick={filterDataSetByStatus}>
@@ -1768,11 +1571,11 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
                     containerHeight={containerHeight} dataset={dataset} isSubgrid={isSubgrid}
                     selectedCount={selectedCount} selection={selection}
                     setFullScreen={setFullScreen} updatedProperties={updatedProperties}>
-                    {(filteredItems && filteredItems.length > 0) ? (
+                    {(items && items.length > 0) ? (
                         <DetailsList
                             setKey="items"
                             onRenderDetailsHeader={gridHeader(onColumnClick)}
-                            items={filteredItems}
+                            items={items}
                             columns={columns}
                             selection={selection}
                             selectionPreservedOnEmptyClick={true}

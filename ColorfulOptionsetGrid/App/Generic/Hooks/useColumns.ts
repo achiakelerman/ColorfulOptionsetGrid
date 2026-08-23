@@ -118,7 +118,7 @@ export const renameColumns = (colName: string) =>  {
     else if (colName == "נייד")
         return "טלפון";
     else if (colName == "דחיפות")
-        return "דחוף";
+        return "דחיפות";
     else if  (colName == "כתובת לביצוע ביקור")
         return "כתובת"; 
     else if  (colName == "ביקור - משובץ ל")

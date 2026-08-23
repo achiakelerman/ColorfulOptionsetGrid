@@ -13,12 +13,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
@@ -31,9 +31,20 @@ jobs:
         run: dotnet build Solution/Solution.cdsproj -c Release
 
       - name: Upload PCF output
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
-          name: pcf-output
+          name: pcf-out
           path: |
             out/**
-            Solution/**/*.zip
+            Solution/bin/Release/**
+            Solution/**/obj/**
+          if-no-files-found: warn
+
+      - name: Upload Dataverse solution zips
+        uses: actions/upload-artifact@v5
+        with:
+          name: dataverse-solution-zips
+          path: |
+            Solution/bin/Release/**/*.zip
+            Solution/bin/Debug/**/*.zip
+          if-no-files-found: warn
