@@ -194,6 +194,7 @@ export const ColorfulGrid = function ColorfulGridApp({
     const [selectedTimes, setSelectedTimes] = React.useState<any[]>([]);
     const [selectedQueueTypes, setSelectedQueueTypes] = React.useState<any[]>([]);
     const [selectedCities, setSelectedCities] = React.useState<any[]>([]);
+    const [applyClientCityFilter, setApplyClientCityFilter] = React.useState<boolean>(false);
     const [allCityOptions, setAllCityOptions] = React.useState<Array<{ label: string; value: string }> | null>(null);
 
     const [builtInFilterOptions, setBuiltInFilterOptions] = React.useState<any[]>([]);
@@ -222,6 +223,38 @@ export const ColorfulGrid = function ColorfulGridApp({
     const languageOptions = React.useMemo(() => getChoiceOptions(languageAttribute), [metadataAttributes, languageAttribute]);
     const timeOptions = React.useMemo(() => getChoiceOptions(timeAttribute), [metadataAttributes, timeAttribute]);
     const queueTypeOptions = React.useMemo(() => getChoiceOptions(queueTypeAttribute), [metadataAttributes, queueTypeAttribute]);
+
+    const cityOptions = React.useMemo(() => {
+        const result = new Map<string, { label: string; value: string }>();
+        items.forEach(item => {
+            const cityId = item[`${cityLinkAlias}.${cityLookupAttribute}`] as string | undefined;
+            const cityName = item[`${cityLinkAlias}.${cityLookupAttribute}name`] as string | undefined;
+            if (cityId) {
+                result.set(cityId, { label: cityName ?? cityId, value: cityId });
+            }
+        });
+        const values: Array<{ label: string; value: string }> = [];
+        result.forEach(v => values.push(v));
+        return values.sort((a, b) => a.label.localeCompare(b.label));
+    }, [items, cityLinkAlias, cityLookupAttribute]);
+
+    const cityOptionsFromColumns = React.useMemo(() => {
+        const cityColumn = context.parameters.dataset.columns.find(c => c.name.endsWith(`${cityLookupAttribute}name`))
+            ?? context.parameters.dataset.columns.find(c => c.name.toLowerCase().includes("city") && c.name.endsWith("name"));
+        if (!cityColumn) return [] as Array<{ label: string; value: string }>;
+
+        const result = new Map<string, { label: string; value: string }>();
+        items.forEach(item => {
+            const name = item[cityColumn.name] as string | undefined;
+            if (name && name.trim() !== "") {
+                result.set(name, { label: name, value: name });
+            }
+        });
+
+        const values: Array<{ label: string; value: string }> = [];
+        result.forEach(v => values.push(v));
+        return values.sort((a, b) => a.label.localeCompare(b.label));
+    }, [items, context.parameters.dataset.columns, cityLookupAttribute]);
 
     React.useEffect(() => {
         if (!isDashboardMode) {
@@ -263,8 +296,7 @@ export const ColorfulGrid = function ColorfulGridApp({
             })
             .catch(() => {
                 if (!isCancelled) {
-                    setAllCityOptions([]);
-                    setError("לא ניתן לטעון את רשימת הערים. יש לבדוק את הגדרת העיר ואת ההרשאות.");
+                    setAllCityOptions(null);
                 }
             });
 
@@ -277,7 +309,133 @@ export const ColorfulGrid = function ColorfulGridApp({
         setError(dashboardConfigurationError ?? "");
     }, [dashboardConfigurationError]);
 
-    const effectiveCityOptions = allCityOptions ?? [];
+    const effectiveCityOptions = React.useMemo(() => {
+        const merged = new Map<string, { label: string; value: string }>();
+
+        const add = (list: Array<{ label: string; value: string }> | null | undefined) => {
+            if (!list) return;
+            list.forEach((item) => {
+                const key = `${item.value}`.trim();
+                const label = `${item.label}`.trim();
+                if (!key || !label) return;
+                if (!merged.has(key)) {
+                    merged.set(key, { label, value: key });
+                }
+            });
+        };
+
+        add(allCityOptions);
+        add(cityOptions);
+        add(cityOptionsFromColumns);
+
+        const values: Array<{ label: string; value: string }> = [];
+        merged.forEach(v => values.push(v));
+        return values.sort((a, b) => a.label.localeCompare(b.label));
+    }, [allCityOptions, cityOptions, cityOptionsFromColumns]);
+
+    const guidPattern = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
+
+    const resolveIncidentIdsByCityGuids = async (cityGuids: string[]): Promise<string[] | null> => {
+        if (!cityGuids || cityGuids.length === 0) return null;
+
+        const linkEntityCandidates: Array<{ entity: string; incidentAttr: string; cityAttr: string }> = [
+            { entity: "mac_incident_ey_city", incidentAttr: "mac_incidentid", cityAttr: "mac_cityid" },
+            { entity: "ey_incident_city", incidentAttr: "ey_incidentid", cityAttr: "ey_cityid" },
+            { entity: "new_incident_city", incidentAttr: "new_incidentid", cityAttr: "new_cityid" }
+        ];
+
+        for (const candidate of linkEntityCandidates) {
+            try {
+                const valuesXml = cityGuids.map((id) => `<value>${id}</value>`).join("");
+                const fetchXml =
+                    `<fetch distinct='true'>` +
+                    `<entity name='${candidate.entity}'>` +
+                    `<attribute name='${candidate.incidentAttr}'/>` +
+                    `<filter>` +
+                    `<condition attribute='${candidate.cityAttr}' operator='in'>${valuesXml}</condition>` +
+                    `</filter>` +
+                    `</entity>` +
+                    `</fetch>`;
+
+                const response = await context.webAPI.retrieveMultipleRecords(
+                    candidate.entity,
+                    `?fetchXml=${encodeURIComponent(fetchXml)}`
+                );
+
+                const ids = new Set<string>();
+                response.entities.forEach((e: any) => {
+                    const incidentId = e[candidate.incidentAttr];
+                    if (incidentId && guidPattern.test(String(incidentId))) {
+                        ids.add(String(incidentId));
+                    }
+                });
+
+                if (ids.size > 0) {
+                    return Array.from(ids);
+                }
+            } catch {
+                // Try next candidate entity/field mapping.
+            }
+        }
+
+        return [];
+    };
+
+    const filteredItems = React.useMemo(() => {
+        if (!isDashboardMode || !applyClientCityFilter || selectedCities.length === 0) {
+            return items;
+        }
+
+        const normalize = (v: any) => String(v ?? "").trim().toLowerCase();
+
+        const selectedLabels = new Set<string>();
+        const selectedValues = new Set<string>();
+
+        selectedCities.forEach((c: any) => {
+            if (c?.label) selectedLabels.add(normalize(c.label));
+            if (c?.value) selectedValues.add(normalize(c.value));
+        });
+
+        if (selectedLabels.size === 0 && selectedValues.size === 0) {
+            return items;
+        }
+
+        return items.filter((item) => {
+            const rowValues: string[] = [];
+            Object.keys(item).forEach((key) => {
+                if (key === "raw" || key === "key") return;
+                const value = item[key];
+                if (value == null) return;
+                rowValues.push(normalize(value));
+            });
+
+            if (rowValues.length === 0) {
+                return false;
+            }
+
+            for (const rowValue of rowValues) {
+                if (!rowValue) continue;
+
+                if (selectedLabels.has(rowValue)) {
+                    return true;
+                }
+
+                if (selectedValues.has(rowValue)) {
+                    return true;
+                }
+
+                if (!guidPattern.test(rowValue)) {
+                    for (const selectedLabel of selectedLabels) {
+                        if (selectedLabel && rowValue.includes(selectedLabel)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        });
+    }, [isDashboardMode, applyClientCityFilter, items, selectedCities]);
 
     // When builtInFilterOptions or dataset filter changes, recompute current selection
     useEffect(() => {
@@ -940,6 +1098,7 @@ export const ColorfulGrid = function ColorfulGridApp({
         setSelectedTimes([]);
         setSelectedQueueTypes([]);
         setSelectedCities([]);
+        setApplyClientCityFilter(false);
 
         setSelectedPlaces([]);
         setSelectedVisitUnitStatuses([]);
@@ -1063,13 +1222,14 @@ export const ColorfulGrid = function ColorfulGridApp({
         return filter;
     }
 
-    function filterDataSet(ev: React.FormEvent<HTMLFormElement>): void {
+    async function filterDataSet(ev: React.FormEvent<HTMLFormElement>): Promise<void> {
         ev.preventDefault();
         const data = new FormData(ev.currentTarget);
         const searchWord = data.get("searchWordInput")?.toString().trim() ?? "";
 
         if (isDashboardMode) {
             if (dashboardConfigurationError) return;
+            setApplyClientCityFilter(selectedCities.length > 0 && !hasCityLinkAlias);
             const root: ComponentFramework.PropertyHelper.DataSetApi.FilterExpression = {
                 conditions: [],
                 filterOperator: 0,
@@ -1078,11 +1238,28 @@ export const ColorfulGrid = function ColorfulGridApp({
 
             addDashboardBaseFilters(root);
 
+            const getConditionOperatorForAttribute = (attributeName: string, entityAliasName?: string): number => {
+                const candidates = context.parameters.dataset.columns.filter((c) => {
+                    if (entityAliasName) {
+                        return c.name === `${entityAliasName}.${attributeName}`;
+                    }
+                    return c.name === attributeName || c.name.endsWith(`.${attributeName}`);
+                });
+
+                const dataType = candidates[0]?.dataType;
+                if (dataType === "MultiSelectOptionSet" || dataType === "MultiSelectPicklist") {
+                    // Dataverse "contain-values" for MultiSelect columns.
+                    return 87;
+                }
+
+                return 8;
+            };
+
             const addInFilter = (attributeName: string, values: any[], entityAliasName?: string) => {
                 if (values.length === 0) return;
                 root.conditions.push({
                     attributeName,
-                    conditionOperator: 8,
+                    conditionOperator: getConditionOperatorForAttribute(attributeName, entityAliasName),
                     value: values,
                     entityAliasName
                 });
@@ -1092,21 +1269,46 @@ export const ColorfulGrid = function ColorfulGridApp({
             addInFilter(languageAttribute, selectedLanguages.map(s => s.value));
             addInFilter(timeAttribute, selectedTimes.map(s => s.value));
             addInFilter(queueTypeAttribute, selectedQueueTypes.map(s => s.value));
-            if (selectedCities.length > 0 && !hasCityLinkAlias) {
-                setError("תצורת הדשבורד שגויה: ה-View חייב לכלול את הקישור citylink לסינון עיר.");
-                return;
-            }
 
+            const selectedCityValues = selectedCities.map(s => String(s.value ?? "").trim()).filter(Boolean);
+            const selectedCityLabels = selectedCities.map(s => String(s.label ?? "").trim()).filter(Boolean);
+            const selectedCityGuids = selectedCityValues.filter(v => guidPattern.test(v));
+
+            // Keep alias-based filtering when available.
             if (hasCityLinkAlias) {
-                const selectedCityValues = selectedCities.map(s => s.value);
-                const selectedCityGuids = selectedCityValues.filter(v => typeof v === "string" && /^[0-9a-fA-F-]{32,36}$/.test(v as string));
-                const selectedCityNames = selectedCityValues.filter(v => !(typeof v === "string" && /^[0-9a-fA-F-]{32,36}$/.test(v as string)));
-
+                const selectedCityNames = selectedCityValues.filter(v => !guidPattern.test(v));
                 if (selectedCityGuids.length > 0) {
                     addInFilter(cityLookupAttribute, selectedCityGuids, cityLinkAlias);
                 }
                 if (selectedCityNames.length > 0) {
                     addInFilter(`${cityLookupAttribute}name`, selectedCityNames, cityLinkAlias);
+                }
+            }
+
+            // Alias-independent fallback: resolve incident IDs by selected city and filter directly on incidentid.
+            if (selectedCities.length > 0) {
+                const guidByLabel = new Map<string, string>();
+                effectiveCityOptions.forEach((opt) => {
+                    const value = String(opt.value ?? "").trim();
+                    const label = String(opt.label ?? "").trim();
+                    if (guidPattern.test(value) && label) {
+                        guidByLabel.set(label.toLowerCase(), value);
+                    }
+                });
+
+                const extraGuidsFromLabels = selectedCityLabels
+                    .map((label) => guidByLabel.get(label.toLowerCase()))
+                    .filter((v): v is string => !!v);
+
+                const cityGuidsForResolution = Array.from(new Set([...selectedCityGuids, ...extraGuidsFromLabels]));
+                if (cityGuidsForResolution.length > 0) {
+                    const incidentIds = await resolveIncidentIdsByCityGuids(cityGuidsForResolution);
+                    if (incidentIds && incidentIds.length > 0) {
+                        addInFilter("incidentid", incidentIds);
+                    } else if (incidentIds && incidentIds.length === 0) {
+                        // Force empty result set when selected cities have no matching incidents.
+                        root.conditions.push({ attributeName: "incidentid", conditionOperator: 0, value: "00000000-0000-0000-0000-000000000000" });
+                    }
                 }
             }
 
@@ -1478,11 +1680,11 @@ export const ColorfulGrid = function ColorfulGridApp({
                     containerHeight={containerHeight} dataset={dataset} isSubgrid={isSubgrid}
                     selectedCount={selectedCount} selection={selection}
                     setFullScreen={setFullScreen} updatedProperties={updatedProperties}>
-                    {(items && items.length > 0) ? (
+                    {(filteredItems && filteredItems.length > 0) ? (
                         <DetailsList
                             setKey="items"
                             onRenderDetailsHeader={gridHeader(onColumnClick)}
-                            items={items}
+                            items={filteredItems}
                             columns={columns}
                             selection={selection}
                             selectionPreservedOnEmptyClick={true}

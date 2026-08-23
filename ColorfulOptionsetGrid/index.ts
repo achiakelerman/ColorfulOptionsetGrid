@@ -215,12 +215,11 @@ export class ColorfulOptionsetGrid implements ComponentFramework.StandardControl
     private getDashboardConfigurationError(context: ComponentFramework.Context<IInputs>): string | undefined {
         const queueItemAlias = (context.parameters.queueItemAlias.raw ?? "queueitem").trim();
         const queueAlias = (context.parameters.queueAlias.raw ?? "queue").trim();
-        const cityLinkAlias = (context.parameters.cityLinkAlias.raw ?? "citylink").trim();
-        const missingAliases = [queueItemAlias, queueAlias, cityLinkAlias]
+        const missingAliases = [queueItemAlias, queueAlias]
             .filter((alias) => !this.datasetHasAlias(context.parameters.dataset, alias));
 
         if (missingAliases.length > 0) {
-            return `תצורת הדשבורד שגויה: ה-View חייב לכלול את הקישורים ${missingAliases.join(", ")}.`;
+            return `תצורת הדשבורד שגויה: ה-View חייב לכלול את הקישורים ${missingAliases.join(", ")}. סינון עיר יעבוד גם ללא קישור ייעודי.`;
         }
 
         return undefined;
