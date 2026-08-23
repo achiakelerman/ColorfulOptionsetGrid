@@ -150,7 +150,7 @@ export const ColorfulCell = function ColorfulCell({ context, item, column, metad
 
         return _div;
     }
-    else if (column.original.name == 'el_b_homevisiturgency') {
+    else if (displayIconType !== "NONE" && column.original.name == 'el_b_homevisiturgency') {
         const urgency = currentItem.raw.getValue(column.original.name);
         if (urgency == true)
             return <div style={{

@@ -146,7 +146,7 @@ export class ColorfulOptionsetGrid implements ComponentFramework.ReactControl<II
                 dataset: context.parameters.dataset,
                 utils: context.utils,
                 displayTextType: context.parameters.displayTextType?.raw ?? "SIMPLE",
-                displayIconType: context.parameters.displayTextType?.raw !== "NOTEXT" ? context.parameters.displayIconType?.raw ?? "NAME" : "NAME",
+                displayIconType: "NONE",
                 defaultIcon: context.parameters.defaultIcon?.raw ?? "CircleShapeSolid",
                 iconConfig1: context.parameters.iconConfig1?.raw ?? undefined,
                 iconConfig2: context.parameters.iconConfig2?.raw ?? undefined,

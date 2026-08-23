@@ -116,6 +116,11 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
     const isDashboardMode = context.parameters.dashboardMode?.raw === "THERAPIST" || context.parameters.dashboardMode?.raw === "PROVIDER";
     const queueItemAlias = (context.parameters.queueItemAlias?.raw ?? "queueitem").trim();
     const queueAlias = (context.parameters.queueAlias?.raw ?? "queue").trim();
+    const dashboardQueueName = isDashboardMode
+        ? (context.parameters.dashboardMode?.raw === "THERAPIST"
+            ? (context.parameters.therapistQueueName?.raw ?? "בקשות לטיפול מטפלים")
+            : (context.parameters.providerQueueName?.raw ?? "בקשות לטיפול ספקים"))
+        : "";
     const cityLinkAlias = (context.parameters.cityLinkAlias?.raw ?? "citylink").trim();
     const cityLookupAttribute = (context.parameters.cityLookupAttribute?.raw ?? "mac_cityid").trim();
     const cityEntityName = (context.parameters.cityEntityName?.raw ?? "ey_city").trim();
@@ -126,7 +131,6 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
 
     const genderAttribute = (context.parameters.genderAttribute?.raw ?? "mac_p_member_gender").trim();
     const languageAttribute = (context.parameters.languageAttribute?.raw ?? "mac_p_preferred_language").trim();
-    const dayAttribute = (context.parameters.dayAttribute?.raw ?? "mac_p_preffered_day").trim();
     const timeAttribute = (context.parameters.timeAttribute?.raw ?? "mac_p_preferred_time").trim();
     const queueTypeAttribute = (context.parameters.queueTypeAttribute?.raw ?? "mac_p_preferred_queue_type").trim();
 
@@ -144,12 +148,13 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
     const waitingQueueItemStateCode = parseIntOrDefault(context.parameters.waitingQueueItemStateCode?.raw, 1);
     const waitingQueueItemStatusCode = parseIntOrDefault(context.parameters.waitingQueueItemStatusCode?.raw, 2);
     const hasQueueItemAlias = datasetHasAlias(queueItemAlias);
+    const hasQueueAlias = datasetHasAlias(queueAlias);
     const hasCityLinkAlias = datasetHasAlias(cityLinkAlias);
 
     const requiredMetadataAttributes = React.useMemo(() => {
         if (!isDashboardMode) return [];
-        return [genderAttribute, languageAttribute, dayAttribute, timeAttribute, queueTypeAttribute];
-    }, [isDashboardMode, genderAttribute, languageAttribute, dayAttribute, timeAttribute, queueTypeAttribute]);
+        return [genderAttribute, languageAttribute, timeAttribute, queueTypeAttribute];
+    }, [isDashboardMode, genderAttribute, languageAttribute, timeAttribute, queueTypeAttribute]);
 
     const { defaultIconNames, metadataAttributes } = useConfig(
         dataset,
@@ -184,7 +189,6 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
 
     const [selectedGenders, setSelectedGenders] = React.useState<any[]>([]);
     const [selectedLanguages, setSelectedLanguages] = React.useState<any[]>([]);
-    const [selectedDays, setSelectedDays] = React.useState<any[]>([]);
     const [selectedTimes, setSelectedTimes] = React.useState<any[]>([]);
     const [selectedQueueTypes, setSelectedQueueTypes] = React.useState<any[]>([]);
     const [selectedCities, setSelectedCities] = React.useState<any[]>([]);
@@ -214,7 +218,6 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
 
     const genderOptions = React.useMemo(() => getChoiceOptions(genderAttribute), [metadataAttributes, genderAttribute]);
     const languageOptions = React.useMemo(() => getChoiceOptions(languageAttribute), [metadataAttributes, languageAttribute]);
-    const dayOptions = React.useMemo(() => getChoiceOptions(dayAttribute), [metadataAttributes, dayAttribute]);
     const timeOptions = React.useMemo(() => getChoiceOptions(timeAttribute), [metadataAttributes, timeAttribute]);
     const queueTypeOptions = React.useMemo(() => getChoiceOptions(queueTypeAttribute), [metadataAttributes, queueTypeAttribute]);
 
@@ -1029,7 +1032,6 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
     function cleanInputs() : void {
         setSelectedGenders([]);
         setSelectedLanguages([]);
-        setSelectedDays([]);
         setSelectedTimes([]);
         setSelectedQueueTypes([]);
         setSelectedCities([]);
@@ -1052,26 +1054,7 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
                 filterOperator: 0,
                 filters: []
             };
-
-            if (requireActiveOnly) {
-                root.conditions.push({ attributeName: "statecode", conditionOperator: 0, value: incidentActiveStateCode.toString() });
-            }
-
-            if (hasQueueItemAlias) {
-                root.conditions.push({
-                    attributeName: "statecode",
-                    entityAliasName: queueItemAlias,
-                    conditionOperator: 0,
-                    value: waitingQueueItemStateCode.toString()
-                });
-
-                root.conditions.push({
-                    attributeName: "statuscode",
-                    entityAliasName: queueItemAlias,
-                    conditionOperator: 0,
-                    value: waitingQueueItemStatusCode.toString()
-                });
-            }
+            addDashboardBaseFilters(root);
 
             CacheHelper.saveJson<ComponentFramework.PropertyHelper.DataSetApi.FilterExpression>(cacheFilterKey, root);
             context.parameters.dataset.filtering.setFilter(root);
@@ -1186,25 +1169,7 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
                 filters: []
             };
 
-            if (requireActiveOnly) {
-                root.conditions.push({ attributeName: "statecode", conditionOperator: 0, value: incidentActiveStateCode.toString() });
-            }
-
-            if (hasQueueItemAlias) {
-                root.conditions.push({
-                    attributeName: "statecode",
-                    entityAliasName: queueItemAlias,
-                    conditionOperator: 0,
-                    value: waitingQueueItemStateCode.toString()
-                });
-
-                root.conditions.push({
-                    attributeName: "statuscode",
-                    entityAliasName: queueItemAlias,
-                    conditionOperator: 0,
-                    value: waitingQueueItemStatusCode.toString()
-                });
-            }
+            addDashboardBaseFilters(root);
 
             const addInFilter = (attributeName: string, values: any[], entityAliasName?: string) => {
                 if (values.length === 0) return;
@@ -1218,7 +1183,6 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
 
             addInFilter(genderAttribute, selectedGenders.map(s => s.value));
             addInFilter(languageAttribute, selectedLanguages.map(s => s.value));
-            addInFilter(dayAttribute, selectedDays.map(s => s.value));
             addInFilter(timeAttribute, selectedTimes.map(s => s.value));
             addInFilter(queueTypeAttribute, selectedQueueTypes.map(s => s.value));
             if (hasCityLinkAlias) {
@@ -1295,6 +1259,36 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
         CacheHelper.saveJson<ComponentFramework.PropertyHelper.DataSetApi.FilterExpression>(cacheFilterKey, currentFilter);
         context.parameters.dataset.filtering.setFilter(currentFilter);
         context.parameters.dataset.refresh();
+    }
+
+    function addDashboardBaseFilters(root: ComponentFramework.PropertyHelper.DataSetApi.FilterExpression): void {
+        if (requireActiveOnly) {
+            root.conditions.push({ attributeName: "statecode", conditionOperator: 0, value: incidentActiveStateCode.toString() });
+        }
+
+        if (hasQueueItemAlias) {
+            root.conditions.push({
+                attributeName: "statecode",
+                entityAliasName: queueItemAlias,
+                conditionOperator: 0,
+                value: waitingQueueItemStateCode.toString()
+            });
+            root.conditions.push({
+                attributeName: "statuscode",
+                entityAliasName: queueItemAlias,
+                conditionOperator: 0,
+                value: waitingQueueItemStatusCode.toString()
+            });
+        }
+
+        if (dashboardQueueName && hasQueueAlias) {
+            root.conditions.push({
+                attributeName: "name",
+                entityAliasName: queueAlias,
+                conditionOperator: 0,
+                value: dashboardQueueName.trim()
+            });
+        }
     }
 
     function filterDataSetByStatus(ev: React.MouseEvent<HTMLButtonElement, MouseEvent>): void {
@@ -1422,6 +1416,7 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
     }
 
     function IsLoading() {
+        if (isDashboardMode) return false;
         return !(builtInFilterCount1 != undefined
             && builtInFilterCount1 != -1
             && builtInFilterCount2 != undefined
@@ -1436,7 +1431,11 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
     return (<>
         {(IsLoading()) && <LoadingGIF />}
         {(!IsLoading()) && <div className='ColorfulOptionsetGrid pcf-container'>
-            {context.parameters.showSearchAndFilters.raw == "true" && (
+            {isDashboardMode ? (
+                <div className='ColorfulOptionsetGrid header-bar'>
+                    <div className='title'>רשימת בקשות לטיפול</div>
+                </div>
+            ) : context.parameters.showSearchAndFilters.raw == "true" && (
                 <div className='ColorfulOptionsetGrid header-bar'>
                     <div className='ColorfulOptionsetGrid built-in-filters'>
                         <button className={`built-in-filter-btn ${currentBuiltInFilter === (context.parameters.builtInFilterText1?.raw ?? "") ? "clicked" : ""}`} onClick={filterDataSetByStatus}>
@@ -1469,10 +1468,6 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
                                 <MultiSelect key="language_filter" options={languageOptions} onChange={(v) => setSelectedLanguages([...v])} value={selectedLanguages} isSelectAll={true} menuPlacement={"bottom"} />
                             </div>
                             <div className="ColorfulOptionsetGrid form-group">
-                                <label>יום</label>
-                                <MultiSelect key="day_filter" options={dayOptions} onChange={(v) => setSelectedDays([...v])} value={selectedDays} isSelectAll={true} menuPlacement={"bottom"} />
-                            </div>
-                            <div className="ColorfulOptionsetGrid form-group">
                                 <label>שעה</label>
                                 <MultiSelect key="time_filter" options={timeOptions} onChange={(v) => setSelectedTimes([...v])} value={selectedTimes} isSelectAll={true} menuPlacement={"bottom"} />
                             </div>
@@ -1484,7 +1479,7 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
                                 <label>עיר</label>
                                 <MultiSelect key="city_filter" options={effectiveCityOptions} onChange={(v) => setSelectedCities([...v])} value={selectedCities} isSelectAll={true} menuPlacement={"bottom"} />
                             </div>
-                            <button disabled={error != ""} type="submit" className={(error != "") ? 'ColorfulOptionsetGrid search-btn disabled' : 'ColorfulOptionsetGrid search-btn'}><span className="ColorfulOptionsetGrid search-icon" aria-hidden="true">🔎</span>חיפוש</button>
+                            <button disabled={error != ""} type="submit" className={(error != "") ? 'ColorfulOptionsetGrid search-btn disabled' : 'ColorfulOptionsetGrid search-btn'}>חיפוש</button>
                             <button type="reset" className='ColorfulOptionsetGrid clean-btn' onClick={cleanAllFilters}>ניקוי</button>
                         </form>
                     )}
@@ -1594,7 +1589,7 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
                                 fontWeight: 'bold',
                                 marginTop: '100px',
                                 fontSize: '25px'
-                            }} >{"לא נמצאו משימות לביקור בית"}</div>)
+                            }} >{"לא נמצאו בקשות לטיפול"}</div>)
                     }
                 </GridOverlay >
             </div>
