@@ -7,26 +7,21 @@ import DataSetInterfaces = ComponentFramework.PropertyHelper.DataSetApi;
 
 
 export const usePaging = (dataset: DataSet) => {    
-      
-    const [firstItemNumber, setFirstItemNumber] = React.useState<number>(0);
-    const [lastItemNumber, setLastItemNumber] = React.useState<number>();
-    const [totalRecords, setTotalRecords] = React.useState<string>();
-    const [currentPage, setCurrentPage] = React.useState<number>(0);
-    const [pageSize, setPageSize] = React.useState<number>(0);    
+    const [currentPage, setCurrentPage] = React.useState<number>(1);
+    const recordIdsKey = dataset.sortedRecordIds.join("|");
+    const isFirstPage = !dataset.paging.hasPreviousPage;
+    const pageSize = Math.max(dataset.sortedRecordIds.length, 1);
+    const displayedPage = isFirstPage ? 1 : currentPage;
+    const totalCount = dataset.paging.totalResultCount;
+    const firstItemNumber = totalCount === 0 ? 0 : (displayedPage - 1) * pageSize + 1;
+    const lastItemNumber = totalCount === 0 ? 0 : firstItemNumber + dataset.sortedRecordIds.length - 1;
+    const totalRecords = totalCount === -1 ? "5000+" : totalCount.toString();
 
     React.useEffect(() => {
-        if(!dataset.paging.hasPreviousPage){ //first page
-            setPageSize(dataset.sortedRecordIds.length);
+        if (isFirstPage) {
             setCurrentPage(1);
-            setTotalRecords(dataset.paging.totalResultCount != -1 ? dataset.paging.totalResultCount.toString() : "5000+");
-            setFirstItemNumber((dataset.paging.totalResultCount > 0 || dataset.paging.totalResultCount == -1) ? 1 : 0);
-            setLastItemNumber(dataset.sortedRecordIds.length)            
-        }               
-        else {
-            setFirstItemNumber((currentPage-1) * pageSize + 1);
-            setLastItemNumber((currentPage-1) * pageSize + dataset.sortedRecordIds.length )       
         }
-    }, [dataset]);
+    }, [isFirstPage, recordIdsKey]);
 
   
 
@@ -36,16 +31,15 @@ export const usePaging = (dataset: DataSet) => {
     }
 
     function movePrevious(){        
-        const newPage = currentPage-1;
+        const newPage = Math.max(currentPage - 1, 1);
         setCurrentPage(newPage);
-        (dataset.paging as any).loadExactPage(newPage);        
-       
+        (dataset.paging as any).loadPreviousPage();
     }
 
     function moveNext(){        
         const newPage = currentPage+1;
         setCurrentPage(newPage);
-        (dataset.paging as any).loadExactPage(newPage);                
+        (dataset.paging as any).loadNextPage();
     }   
 
     return {       
@@ -53,7 +47,7 @@ export const usePaging = (dataset: DataSet) => {
         currentPage,
         firstItemNumber, 
         lastItemNumber, 
-        totalRecords, 
+        totalRecords,
         moveToFirst, 
         movePrevious,
         moveNext,       

@@ -92,7 +92,7 @@ export interface IColorfulGridProps {
     dashboardConfigurationError?: string;
 }
 
-export const ColorfulGrid = React.memo(function ColorfulGridApp({
+export const ColorfulGrid = function ColorfulGridApp({
     context,
     dataset,
     utils,
@@ -223,38 +223,6 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
     const timeOptions = React.useMemo(() => getChoiceOptions(timeAttribute), [metadataAttributes, timeAttribute]);
     const queueTypeOptions = React.useMemo(() => getChoiceOptions(queueTypeAttribute), [metadataAttributes, queueTypeAttribute]);
 
-    const cityOptions = React.useMemo(() => {
-        const result = new Map<string, { label: string; value: string }>();
-        items.forEach(item => {
-            const cityId = item[`${cityLinkAlias}.${cityLookupAttribute}`] as string | undefined;
-            const cityName = item[`${cityLinkAlias}.${cityLookupAttribute}name`] as string | undefined;
-            if (cityId) {
-                result.set(cityId, { label: cityName ?? cityId, value: cityId });
-            }
-        });
-        const values: Array<{ label: string; value: string }> = [];
-        result.forEach(v => values.push(v));
-        return values.sort((a, b) => a.label.localeCompare(b.label));
-    }, [items, cityLinkAlias, cityLookupAttribute]);
-
-    const cityOptionsFromColumns = React.useMemo(() => {
-        const cityColumn = context.parameters.dataset.columns.find(c => c.name.endsWith(`${cityLookupAttribute}name`))
-            ?? context.parameters.dataset.columns.find(c => c.name.toLowerCase().includes("city") && c.name.endsWith("name"));
-        if (!cityColumn) return [] as Array<{ label: string; value: string }>;
-
-        const result = new Map<string, { label: string; value: string }>();
-        items.forEach(item => {
-            const name = item[cityColumn.name] as string | undefined;
-            if (name && name.trim() !== "") {
-                result.set(name, { label: name, value: name });
-            }
-        });
-
-        const values: Array<{ label: string; value: string }> = [];
-        result.forEach(v => values.push(v));
-        return values.sort((a, b) => a.label.localeCompare(b.label));
-    }, [items, context.parameters.dataset.columns, cityLookupAttribute]);
-
     React.useEffect(() => {
         if (!isDashboardMode) {
             setAllCityOptions(null);
@@ -267,32 +235,49 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
             return values.sort((a, b) => a.label.localeCompare(b.label));
         };
 
+        let isCancelled = false;
+        const result = new Map<string, { label: string; value: string }>();
+
+        const loadCities = async (query: string): Promise<void> => {
+            const response = await context.webAPI.retrieveMultipleRecords(cityEntityName, query, 5000);
+            response.entities.forEach((entity) => {
+                const id = entity[cityIdAttribute] as string | undefined;
+                const name = entity[cityNameAttribute] as string | undefined;
+                if (id) {
+                    result.set(id, { label: name ?? id, value: id });
+                }
+            });
+
+            if (response.nextLink) {
+                const queryStart = response.nextLink.indexOf("?");
+                await loadCities(queryStart >= 0 ? response.nextLink.substring(queryStart) : response.nextLink);
+            }
+        };
+
         const query = `?$select=${cityIdAttribute},${cityNameAttribute}&$orderby=${cityNameAttribute} asc`;
-        context.webAPI.retrieveMultipleRecords(cityEntityName, query)
-            .then((response) => {
-                const result = new Map<string, { label: string; value: string }>();
-                response.entities.forEach((entity) => {
-                    const id = entity[cityIdAttribute] as string | undefined;
-                    const name = entity[cityNameAttribute] as string | undefined;
-                    if (id) {
-                        result.set(id, { label: name ?? id, value: id });
-                    }
-                });
-                setAllCityOptions(toSortedOptions(result));
+        loadCities(query)
+            .then(() => {
+                if (!isCancelled) {
+                    setAllCityOptions(toSortedOptions(result));
+                }
             })
             .catch(() => {
-                setAllCityOptions(null);
-                setError("לא ניתן לטעון את רשימת הערים. יש לבדוק את הגדרת העיר ואת ההרשאות.");
+                if (!isCancelled) {
+                    setAllCityOptions([]);
+                    setError("לא ניתן לטעון את רשימת הערים. יש לבדוק את הגדרת העיר ואת ההרשאות.");
+                }
             });
+
+        return () => {
+            isCancelled = true;
+        };
     }, [isDashboardMode, cityEntityName, cityIdAttribute, cityNameAttribute]);
 
     React.useEffect(() => {
         setError(dashboardConfigurationError ?? "");
     }, [dashboardConfigurationError]);
 
-    const effectiveCityOptions = (allCityOptions && allCityOptions.length > 0)
-        ? allCityOptions
-        : (cityOptions.length > 0 ? cityOptions : cityOptionsFromColumns);
+    const effectiveCityOptions = allCityOptions ?? [];
 
     // When builtInFilterOptions or dataset filter changes, recompute current selection
     useEffect(() => {
@@ -1523,10 +1508,4 @@ export const ColorfulGrid = React.memo(function ColorfulGridApp({
         </div>}
     </>
     );
-}, (prevProps, newProps) => {
-    return prevProps.dataset === newProps.dataset
-        && prevProps.employeeJobs === newProps.employeeJobs
-        && prevProps.userIsukGroups === newProps.userIsukGroups
-        && prevProps.containerWidth === newProps.containerWidth
-        && prevProps.containerHeight === newProps.containerHeight
-});
+};
