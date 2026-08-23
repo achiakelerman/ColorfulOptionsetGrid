@@ -9,7 +9,7 @@ type FieldDefinition = {
   attribute: string;
 };
 
-export default class ColorfulOptionsetGrid implements ComponentFramework.StandardControl<IInputs, IOutputs> {
+export class ColorfulOptionsetGrid implements ComponentFramework.StandardControl<IInputs, IOutputs> {
   private container!: HTMLDivElement;
   private context!: ComponentFramework.Context<IInputs>;
   private appliedFilters: Partial<Record<FilterKey, string>> = {};
