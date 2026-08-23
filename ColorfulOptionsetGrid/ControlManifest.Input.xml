@@ -2,10 +2,10 @@
 <manifest>
   <control namespace="Elad" 
            constructor="ColorfulOptionsetGrid" 
-           version="0.3.45"
+           version="0.3.46"
            display-name-key="Elad_ColorfulOptionsetGrid" 
            description-key="Elad_ColorfulOptionsetGrid_Description"
-           control-type="virtual" preview-image="css/imgs/Preview.png">
+           control-type="standard" preview-image="css/imgs/Preview.png">
     <!-- dataset node represents a set of entity records on CDS; allow more than one datasets -->
     <!--type-group name="colorfulTypes">
        <type>OptionSet</type>
@@ -102,8 +102,6 @@
       <code path="index.ts" order="1" />
       <css path="css/ColorfulOptionsetGrid.css" order="1" />
       <resx path="strings/ColorfulOptionsetGrid.1033.resx" version="1.0.0" />
-      <platform-library name="React" version="16.8.6" />
-      <platform-library name="Fluent" version="8.29.0" />
       <img path="App/Controls/phone.png" />
       <!-- UNCOMMENT TO ADD MORE RESOURCES
       <css path="css/ColorfulOptionsetGrid.css" order="1" />

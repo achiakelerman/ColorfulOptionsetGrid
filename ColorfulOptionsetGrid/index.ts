@@ -2,11 +2,12 @@
 /// <reference types="powerapps-component-framework" />
 import { IInputs, IOutputs } from "./generated/ManifestTypes";
 import * as React from "react";
+import * as ReactDOM from "react-dom";
 import { ColorfulGrid, IColorfulGridProps, IsukGroup, CacheHelper} from "./App/ColorfulGrid";
 import LoadingGIF from "./App/Controls/LoadingGIF";
 
 
-export class ColorfulOptionsetGrid implements ComponentFramework.ReactControl<IInputs, IOutputs> {
+export class ColorfulOptionsetGrid implements ComponentFramework.StandardControl<IInputs, IOutputs> {
 
     private _container: HTMLDivElement;
     private fullScreenUpdatedProperties = ["fullscreen_open", "fullscreen_close"];
@@ -140,7 +141,7 @@ export class ColorfulOptionsetGrid implements ComponentFramework.ReactControl<II
      * Called when any value in the property bag has changed. This includes field values, data-sets, global values such as container height and width, offline status, control metadata values such as label, visible, etc.
      * @param context The entire property bag available to control via Context Object; It contains values as set up by the customizer mapped to names defined in the manifest, as well as utility functions
      */
-    public updateView(context: ComponentFramework.Context<IInputs>): React.ReactElement {
+    public updateView(context: ComponentFramework.Context<IInputs>): void {
         if (this._isDashboardMode && !this._isLoading) {
             const props: IColorfulGridProps = {
                 context: context,
@@ -164,7 +165,8 @@ export class ColorfulOptionsetGrid implements ComponentFramework.ReactControl<II
                 updatedProperties: context.updatedProperties,
                 dashboardConfigurationError: this._dashboardConfigurationError
             };
-            return React.createElement(ColorfulGrid, props);
+            ReactDOM.render(React.createElement(ColorfulGrid, props), this._container);
+            return;
         }
 
         if (this._employeeJobs != undefined && ((context.parameters.filterByIsuk.raw == "true" && this._userIsukGroups != undefined) || context.parameters.filterByIsuk.raw != "true") && !this._isLoading) {
@@ -189,9 +191,10 @@ export class ColorfulOptionsetGrid implements ComponentFramework.ReactControl<II
                 cacheFilterKey: this._cacheFilterKey,
                 updatedProperties: context.updatedProperties
             };
-            return React.createElement(ColorfulGrid, props);
+            ReactDOM.render(React.createElement(ColorfulGrid, props), this._container);
+            return;
         }
-        return React.createElement(LoadingGIF);
+        ReactDOM.render(React.createElement(LoadingGIF), this._container);
     }
 
     private isDashboardMode(context: ComponentFramework.Context<IInputs>): boolean {
@@ -331,6 +334,7 @@ export class ColorfulOptionsetGrid implements ComponentFramework.ReactControl<II
      * i.e. cancelling any pending remote calls, removing listeners, etc.
      */
     public destroy(): void {
+        ReactDOM.unmountComponentAtNode(this._container);
     }
 
     private buildFilterCacheKey(context: ComponentFramework.Context<IInputs>) {
