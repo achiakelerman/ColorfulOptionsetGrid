@@ -1,45 +1,44 @@
-# בקשות לטיפול
+# בקשות לטיפול - Dataset PCF
 
-רכיב PCF עצמאי עבור בקשות טיפול פעילות שממתינות בתור המטפלים או בתור הספקים. הרשומות ממוינות לפי דחיפות ולאחריה לפי תאריך יצירה.
+הרכיב `Elad.ColorfulOptionsetGrid` הוא Dataset PCF עבור בקשות טיפול. הוא מציג רק את הרשומות שה־Dataset/View המארח מעביר אליו, ומבצע סינון מקומי לאחר לחיצה על `חפש`.
 
-## מה הרכיב מציג
+## עמודות Dataset נדרשות
 
-- בקשות `incident` פעילות בלבד (`statecode = 0`).
-- פריטי תור שממתינים לפי הערכים שהוגדרו ב־`waitingQueueItemStateCode` וב־`waitingQueueItemStatusCode`.
-- תור מטפלים או תור ספקים, לפי `dashboardMode`.
-- מסננים: מגדר, שפה, יום, שעה, סוג תור ועיר.
-- כל הערים נטענות מ־`ey_city`; הקישור לבקשה נקבע דרך `mac_incident_ey_city`.
+יש להוסיף ל־View המארח את העמודות הבאות:
 
-## הגדרות רכיב
+- `ticketnumber`, `prioritycode`, `statuscode`
+- `mac_p_member_gender`, `mac_p_preferred_language`
+- `mac_p_preffered_day`, `mac_p_preferred_time`
+- `mac_p_preferred_queue_type`, `ey_cityid`
 
-הוסיפו את `Elad.ColorfulOptionsetGrid` לשדה בטופס של ישות עזר או ל־Custom Page, והגדירו:
+המסננים משתמשים ב־`getFormattedValue`, ולכן ערכי Option Set ו־Lookup מוצגים לפי תווית Dataverse ולא לפי מזהה.
 
-| הגדרה | ערך מטפלים | ערך ספקים |
-| --- | --- | --- |
-| `dashboardMode` | `THERAPIST` | `PROVIDER` |
-| `therapistQueueName` | שם תור המטפלים המדויק | שם תור המטפלים המדויק |
-| `providerQueueName` | שם תור הספקים המדויק | שם תור הספקים המדויק |
-| `waitingQueueItemStateCode` | `1` | `1` |
-| `waitingQueueItemStatusCode` | `2` | `2` |
+## תורים ומצבי Dashboard
 
-שמות השדות והטבלאות ב־Manifest הם ברירות המחדל של המערכת. משנים אותם רק כאשר הסביבה משתמשת בשמות לוגיים אחרים.
+`queueMode` הוא פרמטר תצוגה עם הערכים `THERAPIST` ו־`PROVIDER`.
 
-## חיבור למערכת
+ל־Dataset API אין שדה תור מאומת ב־Manifest או בקוד הנוכחי, ולכן הרכיב אינו מנחש פילטר תור. יוצרים שני Views נפרדים של `incident`:
 
-1. התקינו את קובץ ה־Solution שנבנה מהפרויקט.
-2. ב־Power Apps, הוסיפו את רכיב ה־PCF לשדה בטופס או ל־Custom Page בתוך ה־Model-driven app.
-3. בחרו `THERAPIST` או `PROVIDER` וקבעו את שמות התורים המדויקים.
-4. העניקו למשתמשים הרשאת קריאה עבור `incident`, `queueitem`, `queue`, `ey_city` ו־`mac_incident_ey_city`.
+1. View מטפלים: מסנן את בקשות התור למטפלים לפי הקשר התור המאושר בארגון.
+2. View ספקים: מסנן את בקשות התור לספקים לפי הקשר התור המאושר בארגון.
 
-Dashboard קלאסי של Dataverse אינו מארח רכיבי PCF ישירות. למסך דשבורד יש להשתמש ב־Custom Page שמכיל את הרכיב ולהוסיף את ה־Custom Page לאפליקציה. כדי להציג אותו בתוך Dashboard קלאסי יש לבנות Web Resource ייעודי, נפרד מה־PCF, ולהוסיף אותו כרכיב Web Resource בדשבורד.
+בשני ה־Views יש להגדיר את תנאי ההמתנה והפעילות בפועל. ה־PCF מקבל רק את תוצאות ה־View, מציג אותן לפי `prioritycode` מהדחוף ביותר, ומסנן את ששת שדות החיפוש.
+
+## חיבור ל־Dynamics
+
+1. ייבא את ZIP ה־Solution ופרסם את כל ההתאמות.
+2. ערוך את ה־Dashboard ובחר רכיב רשימה/רשת שמבוסס על ה־View המתאים.
+3. הגדר את הפקד `Elad.ColorfulOptionsetGrid` עבור ה־Dataset של הרשימה.
+4. ודא שכל עמודות ה־Dataset הנדרשות נכללות ב־View.
+5. בלוח מטפלים הגדר `queueMode=THERAPIST`; בלוח ספקים הגדר `queueMode=PROVIDER`.
+6. שמור ופרסם את ה־Dashboard.
+
+בדיקה: בטעינה יוצגו כל הרשומות מה־View, לחיצה על `חפש` מפעילה את המסננים, `נקה חיפוש` מחזיר את כל הרשומות, ולחיצה כפולה על שורה פותחת את בקשת ה־`incident`.
 
 ## בנייה
 
-הפרויקט דורש Node.js ב־PATH.
-
 ```powershell
-npm ci
+npm install
 npm run build
+dotnet build Solution/Solution.cdsproj -c Release
 ```
-
-לאחר הבנייה, בנו את פרויקט ה־Solution כדי לקבל קובץ ZIP לייבוא ל־Dataverse.

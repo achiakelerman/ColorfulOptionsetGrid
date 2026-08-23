@@ -9,29 +9,6 @@
   <EntityRelationships />
   <OrganizationSettings />
   <optionsets />
-  <WebResources>
-    <WebResource>
-      <Name>el_/TreatmentRequestsDashboard.html</Name>
-      <DisplayName>טיפול - בקשות לטיפול</DisplayName>
-      <Description>דשבורד בקשות טיפול</Description>
-      <Content>__TREATMENT_REQUESTS_DASHBOARD_CONTENT__</Content>
-      <WebResourceType>1</WebResourceType>
-      <IntroducedVersion>1.0.2.0</IntroducedVersion>
-      <IsAvailableForMobileOffline>false</IsAvailableForMobileOffline>
-      <IsEnabledForMobileClient>false</IsEnabledForMobileClient>
-      <IsCustomizable>
-        <Value>true</Value>
-        <CanBeChanged>true</CanBeChanged>
-        <ManagedPropertyLogicalName>iscustomizable</ManagedPropertyLogicalName>
-      </IsCustomizable>
-      <CanBeDeleted>
-        <Value>true</Value>
-        <CanBeChanged>true</CanBeChanged>
-        <ManagedPropertyLogicalName>canbedeleted</ManagedPropertyLogicalName>
-      </CanBeDeleted>
-      <IsHidden>false</IsHidden>
-    </WebResource>
-  </WebResources>
   <CustomControls />
   <SolutionPluginAssemblies />
   <EntityDataProviders />
