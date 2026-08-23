@@ -28,7 +28,7 @@ jobs:
         run: npm run build
 
       - name: Build Dataverse solution package
-        run: dotnet build Solution/Solution.csproj -c Release
+        run: dotnet build Solution/Solution.cdsproj -c Release
 
       - name: Upload PCF output
         uses: actions/upload-artifact@v4
