@@ -19,7 +19,7 @@ export class ColorfulOptionsetGrid implements ComponentFramework.StandardControl
     { key: "day", label: "יום", attribute: "mac_p_preffered_day" },
     { key: "time", label: "שעה", attribute: "mac_p_preferred_time" },
     { key: "queueType", label: "סוג תור", attribute: "mac_p_preferred_queue_type" },
-    { key: "city", label: "עיר", attribute: "ey_cityid" }
+    { key: "city", label: "עיר", attribute: "ey_s_name" }
   ];
 
   public init(context: ComponentFramework.Context<IInputs>, _notify: () => void, _state: ComponentFramework.Dictionary, container: HTMLDivElement): void {

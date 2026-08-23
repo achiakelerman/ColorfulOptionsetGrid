@@ -9,9 +9,9 @@
 - `ticketnumber`, `prioritycode`, `statuscode`
 - `mac_p_member_gender`, `mac_p_preferred_language`
 - `mac_p_preffered_day`, `mac_p_preferred_time`
-- `mac_p_preferred_queue_type`, `ey_cityid`
+- `mac_p_preferred_queue_type`, `ey_s_name`
 
-המסננים משתמשים ב־`getFormattedValue`, ולכן ערכי Option Set ו־Lookup מוצגים לפי תווית Dataverse ולא לפי מזהה.
+המסננים משתמשים ב־`getFormattedValue`. העיר נטענת מעמודת Dataset מקושרת `ey_s_name`, שהיא ה־Primary Name המאומת של `ey_city`; אין לרכיב קריאת Web API עצמאית.
 
 ## תורים ומצבי Dashboard
 
