@@ -1,57 +1,20 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" ?>
 <manifest>
-  <control namespace="Elad" 
-           constructor="ColorfulOptionsetGrid" 
-           version="1.0.0"
-           display-name-key="Elad_ColorfulOptionsetGrid" 
-           description-key="Elad_ColorfulOptionsetGrid_Description"
-           control-type="standard" preview-image="css/imgs/Preview.png">
-    <property name="dashboardMode" display-name-key="dashboardMode" description-key="Dashboard mode selector" of-type="Enum" usage="input" required="true" default-value="NONE">
-      <value name="NONE" display-name-key="NONE" description-key="Use legacy behavior">NONE</value>
-      <value name="THERAPIST" display-name-key="THERAPIST" description-key="Therapist queue dashboard">THERAPIST</value>
-      <value name="PROVIDER" display-name-key="PROVIDER" description-key="Provider queue dashboard">PROVIDER</value>
-    </property>
-    <property name="therapistQueueName" display-name-key="therapistQueueName" description-key="Queue name for therapist dashboard" of-type="SingleLine.Text" usage="input" required="false" />
-    <property name="providerQueueName" display-name-key="providerQueueName" description-key="Queue name for provider dashboard" of-type="SingleLine.Text" usage="input" required="false" />
-    <property name="waitingQueueItemStateCode" display-name-key="waitingQueueItemStateCode" description-key="StateCode value that means waiting on queueitem" of-type="SingleLine.Text" usage="input" required="false" default-value="1" />
-    <property name="waitingQueueItemStatusCode" display-name-key="waitingQueueItemStatusCode" description-key="StatusCode value that means waiting on queueitem" of-type="SingleLine.Text" usage="input" required="false" default-value="2" />
-    <property name="genderAttribute" display-name-key="genderAttribute" description-key="Incident field for gender filter" of-type="SingleLine.Text" usage="input" required="false" default-value="mac_p_member_gender" />
-    <property name="languageAttribute" display-name-key="languageAttribute" description-key="Incident field for language filter" of-type="SingleLine.Text" usage="input" required="false" default-value="mac_p_preferred_language" />
-    <property name="dayAttribute" display-name-key="dayAttribute" description-key="Incident field for day filter" of-type="SingleLine.Text" usage="input" required="false" default-value="mac_p_preffered_day" />
-    <property name="timeAttribute" display-name-key="timeAttribute" description-key="Incident field for time filter" of-type="SingleLine.Text" usage="input" required="false" default-value="mac_p_preferred_time" />
-    <property name="queueTypeAttribute" display-name-key="queueTypeAttribute" description-key="Incident field for preferred queue type filter" of-type="SingleLine.Text" usage="input" required="false" default-value="mac_p_preferred_queue_type" />
-    <property name="cityEntityName" display-name-key="cityEntityName" description-key="City table logical name for loading all city options" of-type="SingleLine.Text" usage="input" required="false" default-value="ey_city" />
-    <property name="cityIdAttribute" display-name-key="cityIdAttribute" description-key="City table primary key logical name" of-type="SingleLine.Text" usage="input" required="false" default-value="ey_cityid" />
-    <property name="cityNameAttribute" display-name-key="cityNameAttribute" description-key="City table name logical name" of-type="SingleLine.Text" usage="input" required="false" default-value="ey_name" />
-    <property name="incidentCityLinkEntity" display-name-key="incidentCityLinkEntity" description-key="Incident-city link table logical name" of-type="SingleLine.Text" usage="input" required="false" default-value="mac_incident_ey_city" />
-    <property name="incidentCityAttribute" display-name-key="incidentCityAttribute" description-key="Incident lookup logical name on the link table" of-type="SingleLine.Text" usage="input" required="false" default-value="mac_incidentid" />
-    <property name="cityLinkLookupAttribute" display-name-key="cityLinkLookupAttribute" description-key="City lookup logical name on the link table" of-type="SingleLine.Text" usage="input" required="false" default-value="mac_cityid" />
-
+  <control namespace="Elad" constructor="ColorfulOptionsetGrid" version="2.0.0" display-name-key="ColorfulOptionsetGrid" description-key="ColorfulOptionsetGrid" control-type="standard">
+    <property name="queueMode" display-name-key="QueueMode" description-key="QueueMode" of-type="SingleLine.Text" usage="input" required="false" default-value="THERAPIST" />
+    <data-set name="dataset" display-name-key="Dataset" cds-data-set-options="displayviewoption">
+      <property-set name="requestNumber" display-name-key="RequestNumber" of-type="SingleLine.Text" usage="bound" required="false" />
+      <property-set name="prioritycode" display-name-key="PriorityCode" of-type="Whole.None" usage="bound" required="false" />
+      <property-set name="mac_p_member_gender" display-name-key="Gender" of-type="SingleLine.Text" usage="bound" required="false" />
+      <property-set name="mac_p_preferred_language" display-name-key="Language" of-type="SingleLine.Text" usage="bound" required="false" />
+      <property-set name="mac_p_preffered_day" display-name-key="PreferredDay" of-type="SingleLine.Text" usage="bound" required="false" />
+      <property-set name="mac_p_preferred_time" display-name-key="PreferredTime" of-type="SingleLine.Text" usage="bound" required="false" />
+      <property-set name="mac_p_preferred_queue_type" display-name-key="QueueType" of-type="SingleLine.Text" usage="bound" required="false" />
+      <property-set name="ey_cityid" display-name-key="City" of-type="Lookup.Simple" usage="bound" required="false" />
+    </data-set>
     <resources>
-      <code path="DashboardIndex.ts" order="1" />
+      <code path="App/TreatmentRequestsDashboard.tsx" order="1" />
       <css path="css/ColorfulOptionsetGrid.css" order="1" />
-      <css path="css/TreatmentRequestsDashboard.css" order="2" />
-      <resx path="strings/ColorfulOptionsetGrid.1033.resx" version="1.0.0" />
-      <!-- UNCOMMENT TO ADD MORE RESOURCES
-      <css path="css/ColorfulOptionsetGrid.css" order="1" />
-      <resx path="strings/ColorfulOptionsetGrid.1033.resx" version="1.0.0" />
-      -->
     </resources>
-    <feature-usage>
-      <uses-feature name="Utility" required="true" />
-      <uses-feature name="WebAPI" required="true" />
-    </feature-usage>
-    <!-- UNCOMMENT TO ENABLE THE SPECIFIED API
-    <feature-usage>
-      <uses-feature name="Device.captureAudio" required="true" />
-      <uses-feature name="Device.captureImage" required="true" />
-      <uses-feature name="Device.captureVideo" required="true" />
-      <uses-feature name="Device.getBarcodeValue" required="true" />
-      <uses-feature name="Device.getCurrentPosition" required="true" />
-      <uses-feature name="Device.pickFile" required="true" />
-      <uses-feature name="Utility" required="true" />
-      <uses-feature name="WebAPI" required="true" />
-    </feature-usage>
-    -->
   </control>
 </manifest>
