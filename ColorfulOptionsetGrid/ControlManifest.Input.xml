@@ -11,7 +11,7 @@
       <property-set name="mac_p_preffered_day" display-name-key="PreferredDay" of-type="SingleLine.Text" usage="bound" required="false" />
       <property-set name="mac_p_preferred_time" display-name-key="PreferredTime" of-type="SingleLine.Text" usage="bound" required="false" />
       <property-set name="mac_p_preferred_queue_type" display-name-key="QueueType" of-type="SingleLine.Text" usage="bound" required="false" />
-        תproperty-set name="ey_cityid" display-name-key="City" of-type="SingleLine.Text" usage="bound" required="false" />
+        תתproperty-set name="ey_cityid" display-name-key="City" of-type="SingleLine.Text" usage="bound" required="false" />
     </data-set>
     <resources>
       <code path="index.ts" order="1" />
